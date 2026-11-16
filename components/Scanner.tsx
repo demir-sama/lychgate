@@ -22,11 +22,11 @@ const RESURRECTABLE = new Set<LinkClass>(["tombstone", "ghost", "zombie", "drift
 
 const SAMPLE_MD = `# Reading list
 
-- [Pew: When Online Content Disappears](https://www.pewresearch.org/data-labs/2024/05/17/when-online-content-disappears/)
-- [Google Reader](http://www.google.com/reader/)
-- [Yahoo! GeoCities](http://geocities.com/)
+- [dtach](https://github.com/bogner/dtach)
+- [HTML 4.01 spec](https://www.w3.org/TR/html4/)
 - [A page that never existed](https://www.w3.org/this/page/was/never/here)
-- https://www.w3.org/TR/html4/
+- [Unregistered domain](https://lychgate-demo-unregistered-domain-example.com/docs)
+- [Cloud metadata (refused)](http://169.254.169.254/latest/meta-data/)
 `;
 
 function fmtDate(iso?: string) {

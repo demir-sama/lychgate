@@ -203,3 +203,30 @@ describe("guarded undici agent (real sockets)", () => {
     expect(err.kind).toBe("ssrf");
   });
 });
+
+describe("meta refresh stubs", () => {
+  it("metaRefreshTarget parses absolute and relative targets", async () => {
+    const { metaRefreshTarget } = await import("@/lib/fetch/http");
+    expect(metaRefreshTarget(`<meta http-equiv="refresh" content="0; url=https://new.example/x">`, "http://old.example/")).toBe("https://new.example/x");
+    expect(metaRefreshTarget(`<META HTTP-EQUIV=REFRESH CONTENT="5;URL='/moved'">`, "https://a.example/p")).toBe("https://a.example/moved");
+    expect(metaRefreshTarget(`<meta http-equiv="refresh" content="30">`, "https://a.example/")).toBeNull();
+    expect(metaRefreshTarget(`<p>no tag</p>`, "https://a.example/")).toBeNull();
+    expect(metaRefreshTarget(`<meta http-equiv="refresh" content="0; url=https://a.example/">`, "https://a.example/")).toBeNull();
+  });
+  it("probeLink follows one meta-refresh stub and records the hop", async () => {
+    const t = mockTransport({
+      "http://stub.example/page": html(`<meta http-equiv="refresh" content="0; url=https://stub.example/page">`, "Moved"),
+      "https://stub.example/page": html("<p>real content</p>", "Real"),
+    });
+    const r = await probeLink("http://stub.example/page", { transport: t, resolver: mockResolver(), wantBody: true });
+    expect(r).toMatchObject({ ok: true, status: 200, finalUrl: "https://stub.example/page" });
+    expect(r.body).toContain("real content");
+    expect(r.redirects).toEqual([{ from: "http://stub.example/page", to: "https://stub.example/page", status: 200 }]);
+  });
+  it("re-checks the meta-refresh target with the SSRF guard", async () => {
+    const t = mockTransport({ "https://evil.example/": html(`<meta http-equiv="refresh" content="0; url=http://169.254.169.254/">`) });
+    const r = await probeLink("https://evil.example/", { transport: t, resolver: mockResolver(), wantBody: true });
+    expect(r.error?.kind).toBe("ssrf");
+    expect(r.redirects).toHaveLength(1);
+  });
+});

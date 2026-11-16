@@ -109,3 +109,20 @@ describe("classify: properties", () => {
     );
   });
 });
+
+describe("classify: false-positive guards found in live scans", () => {
+  it("transient resolver errors (EBUSY, SERVFAIL) are restless, not tombstones", () => {
+    for (const code of ["EBUSY", "ESERVFAIL", "ETIMEOUT", "EAI_AGAIN", undefined]) {
+      expect(classify({ error: { kind: "dns", code, message: "x" } }).cls).toBe("restless");
+    }
+    expect(classify({ error: { kind: "dns", code: "ENODATA", message: "x" } }).cls).toBe("tombstone");
+  });
+  it("an identical made-up URL on a thin page (SPA shell) is restless, not a ghost", () => {
+    const v = classify({ status: 200, softProbe: { status: 200, similarity: 1, lengthRatio: 1, titleMatch: true, liveTextLength: 40 } });
+    expect(v.cls).toBe("restless");
+    expect(v.reasons[0]).toMatch(/JavaScript app shell/);
+    expect(classify({ status: 200, softProbe: { status: 200, similarity: 1, lengthRatio: 1, titleMatch: true, liveTextLength: 5000 } }).cls).toBe("ghost");
+    // thin page that also says "not found" is still a ghost
+    expect(classify({ status: 200, notFoundText: true, softProbe: { status: 200, similarity: 1, lengthRatio: 1, titleMatch: true, liveTextLength: 40 } }).cls).toBe("ghost");
+  });
+});
