@@ -1,0 +1,56 @@
+# scanner-classifier: design
+
+## Pipeline
+
+```
+input ─▶ sources.ts ─▶ Target[] (canonical URL, occurrences, cite date)
+                         │
+                         ▼  per link, HostLimiter(8/host, 24 global)
+                   analyze.ts
+                    1. probeLink (HEAD→GET, safeFetch)       lib/fetch/http.ts
+                    2. parseHtml → title/text                lib/classify/html.ts
+                    3. signals: parked, not-found text,      lib/classify/signals.ts
+                       redirect-to-root
+                    4. soft-404 probe (random sibling path,
+                       cached per directory, budget 60)
+                    5. RDAP if cite date or NXDOMAIN         lib/domain/rdap.ts
+                    6. drift: snapshot ≤ cite date vs live   lib/archive/wayback.ts
+                       (deep links only, budget 40)
+                    7. classify(evidence)  ← pure            lib/classify/classify.ts
+                    8. snapshot for resurrectable classes
+                         │
+                         ▼
+                   engine.ts (async generator) ─▶ route.ts (NDJSON stream) ─▶ UI
+```
+
+## Key decisions
+- **Pure classifier.** All I/O happens before `classify(evidence)`. That keeps the decision table exhaustively unit- and property-testable (R5.6, R5.7).
+- **Two-layer SSRF guard.** `assertPublicUrl` (shape + DNS, all answers must be public) runs before every hop for clear errors; `createGuardedLookup` is installed as undici's `connect.lookup`, so the address actually dialled is validated (R4.5). IP literals skip DNS in Node, which is why the pre-check also validates literals. Address policy is an allow-list (ipaddr.js `unicast` plus explicit extra blocks), not a deny-list.
+- **Redirects followed manually** (`redirect: "manual"`) so every Location is re-validated (R4.4).
+- **Restless, not dead.** Bot-blocking (403/429/999), 5xx and timeouts are common false positives in link checkers; we refuse to call them dead (R5.5).
+- **Cite date from git without a token.** The commits API gives ≤ 100 commits per file in one call; raw.githubusercontent.com (outside the API quota) gives contents at each SHA. A per-URL binary search finds the introducing commit with O(log n) reads, memoised per SHA (R2.1). Optional `GITHUB_TOKEN` (server env only) raises limits; not required.
+- **Drift only on deep links.** Home pages are expected to change; flagging them created false positives in real scans (wireshark.org at 11%).
+- **Snapshot without cite date = latest 200**, not earliest. The spec draft said "earliest"; for resurrection the latest good copy is the better candidate, and drift is only computed when a cite date exists. (Deviation recorded here deliberately.)
+- **Caches** are per serverless instance (`TtlCache`, promise-valued so concurrent callers share requests). Shared caching (Neon/KV) is milestone 2+.
+- **RDAP via IANA bootstrap**, not rdap.org, so "no RDAP service for this TLD" is distinguishable from "domain not registered".
+
+## Thresholds (lib/classify/classify.ts `THRESHOLDS`)
+| name | value | meaning |
+|---|---|---|
+| contentMatch | 0.80 | ≥ this similarity to the cited snapshot ⇒ Living, never dead |
+| drift | 0.35 | < this ⇒ Drifted |
+| softProbe | 0.90 | live vs random-sibling similarity for a Ghost |
+| softProbeLength | 0.80 | length ratio needed with softProbe |
+
+## Event schema (lib/scan/types.ts)
+`status{message}` · `meta{source,total,found,capped,docs[],warnings[]}` · `result{LinkResult}` · `done{summary,ms}` · `error{message}`
+
+## Testing map
+| requirement | tests |
+|---|---|
+| R4 SSRF | tests/ip.test.ts, tests/guard.test.ts, tests/http.test.ts (incl. real-socket rebinding test) |
+| R3 fetch | tests/http.test.ts, tests/limiter.test.ts |
+| R5 classify | tests/classify.test.ts (incl. property R5.6), tests/signals.test.ts |
+| R6 archive | tests/archive.test.ts (property: snapshot picker) |
+| R1/R2 sources | tests/markdown.test.ts, tests/github.test.ts, tests/engine.test.ts |
+| R7 streaming | tests/engine.test.ts, tests/route.test.ts |
