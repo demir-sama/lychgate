@@ -5,7 +5,8 @@ import { detectParked, looksLikeNotFound, redirectedToRoot } from "../classify/s
 import { lookupRdap } from "../domain/rdap";
 import { HostLimiter, Semaphore } from "../fetch/limiter";
 import { NXDOMAIN_CODES } from "../fetch/guard";
-import { probeLink, type SafeFetchOptions } from "../fetch/http";
+import { probeLink, type LinkProbe, type SafeFetchOptions } from "../fetch/http";
+import { isArchiveUrl } from "../util/url";
 import type { LinkResult, Target } from "./types";
 
 type Deps = Pick<SafeFetchOptions, "transport" | "resolver">;
@@ -48,14 +49,34 @@ async function softProbe(ctx: ScanContext, target: URL) {
   return p;
 }
 
+/** Retries for 429/503 (rate limited / overloaded), so busy hosts like github.com aren't left "restless". */
+export const MAX_RATE_RETRIES = 2;
+
+/** Exponential backoff with jitter; honours Retry-After up to 8 s. */
+export function backoffMs(attempt: number, retryAfterS?: number, jitter = Math.random()): number {
+  const base = retryAfterS !== undefined ? retryAfterS * 1000 : 1500 * 2 ** attempt;
+  return Math.min(8000, base) + Math.round(jitter * 400);
+}
+
+async function probeWithBackoff(url: string, ctx: ScanContext): Promise<LinkProbe> {
+  for (let attempt = 0; ; attempt++) {
+    const r = await ctx.limiter.run(url, () => probeLink(url, { ...ctx.deps, wantBody: true, signal: ctx.signal }), ctx.signal);
+    const limited = r.status === 429 || r.status === 503;
+    if (!limited || attempt >= MAX_RATE_RETRIES || ctx.signal?.aborted) return r;
+    ctx.limiter.cool(url, backoffMs(attempt, r.retryAfter));
+  }
+}
+
 const isDeep = (u: URL) => u.pathname.replace(/\/+$/, "").length > 0 || u.search.length > 1;
 
 export async function analyzeTarget(target: Target, ctx: ScanContext): Promise<LinkResult> {
   const t0 = Date.now();
   const url = new URL(target.url);
   const citeDate = target.citeDate ? new Date(target.citeDate) : null;
-  const probe = await ctx.limiter.run(target.url, () => probeLink(target.url, { ...ctx.deps, wantBody: true, signal: ctx.signal }));
+  const probe = await probeWithBackoff(target.url, ctx);
+  const archived = isArchiveUrl(target.url);
   const ev: Evidence = {
+    archived,
     status: probe.status,
     error: probe.error,
     finalUrl: probe.finalUrl,
@@ -69,14 +90,15 @@ export async function analyzeTarget(target: Target, ctx: ScanContext): Promise<L
     liveText = info.text;
     if (probe.ok) ev.notFoundText = looksLikeNotFound(info.title, info.text);
   }
-  if (probe.ok || probe.body) {
+  // Archived copies are frozen: their old "for sale" banners or home redirects say nothing about today.
+  if ((probe.ok || probe.body) && !archived) {
     const parked = detectParked({ html: probe.body, finalUrl: probe.finalUrl, redirectUrls: probe.redirects.map((r) => r.to) });
     if (parked) ev.parked = parked;
   }
-  if (probe.ok) ev.redirectedToRoot = redirectedToRoot(target.url, probe.finalUrl);
+  if (probe.ok && !archived) ev.redirectedToRoot = redirectedToRoot(target.url, probe.finalUrl);
 
   // Soft-404 probe: does a made-up sibling URL look the same?
-  if (probe.ok && probe.body && !ev.parked && !ev.notFoundText && !ev.redirectedToRoot && isDeep(url) && !ctx.signal?.aborted) {
+  if (probe.ok && probe.body && !archived && !ev.parked && !ev.notFoundText && !ev.redirectedToRoot && isDeep(url) && !ctx.signal?.aborted) {
     const sp = await softProbe(ctx, url).catch(() => null);
     if (sp) {
       const liveLen = liveText.length;
@@ -102,7 +124,7 @@ export async function analyzeTarget(target: Target, ctx: ScanContext): Promise<L
   let beforeCite = !!citeDate;
   const ghostish = ev.notFoundText || ev.redirectedToRoot || ev.parked;
   // Home pages are expected to change, so drift is only judged for deep links.
-  if (probe.ok && probe.body && citeDate && isDeep(url) && !ghostish && ctx.driftBudget > 0 && !ctx.signal?.aborted) {
+  if (probe.ok && probe.body && citeDate && !archived && isDeep(url) && !ghostish && ctx.driftBudget > 0 && !ctx.signal?.aborted) {
     ctx.driftBudget--;
     const found = await ctx.wayback.run(() => findSnapshot(target.url, citeDate, ctx.deps));
     snapshot = found.snapshot;

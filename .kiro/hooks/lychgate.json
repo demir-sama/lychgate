@@ -7,16 +7,16 @@
       "enabled": true,
       "trigger": "PostFileSave",
       "matcher": "lib/classify/.*\\.ts$",
-      "action": { "type": "command", "command": "pnpm vitest run tests/classify.test.ts tests/signals.test.ts" },
+      "action": { "type": "command", "command": "pnpm vitest run tests/classify.test.ts tests/signals.test.ts tests/backoff.test.ts" },
       "timeout": 60
     },
     {
       "name": "ssrf-guard-suite",
-      "description": "Any edit to the fetch layer or IP policy re-runs the SSRF guard, resolver and HTTP tests. Security first: these must stay green.",
+      "description": "Any edit to the fetch layer or IP policy re-runs the SSRF guard, resolver, HTTP, limiter and backoff tests. Security first: these must stay green.",
       "enabled": true,
       "trigger": "PostFileSave",
       "matcher": "lib/(fetch|net)/.*\\.ts$",
-      "action": { "type": "command", "command": "pnpm vitest run tests/guard.test.ts tests/ip.test.ts tests/http.test.ts tests/resolver.test.ts" },
+      "action": { "type": "command", "command": "pnpm vitest run tests/guard.test.ts tests/ip.test.ts tests/http.test.ts tests/resolver.test.ts tests/limiter.test.ts tests/backoff.test.ts" },
       "timeout": 60
     },
     {
