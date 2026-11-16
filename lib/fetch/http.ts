@@ -213,8 +213,20 @@ export type LinkProbe = {
   redirects: RedirectHop[];
   contentType?: string;
   body?: string;
+  /** seconds from a Retry-After header on 429/503 (capped at 60) */
+  retryAfter?: number;
   error?: { kind: FetchErrorKind; code?: string; message: string };
 };
+
+/** Parse Retry-After (delta-seconds or HTTP date) into seconds, capped at 60. */
+export function parseRetryAfter(value: string | null | undefined, now = Date.now()): number | undefined {
+  if (!value) return undefined;
+  const v = value.trim();
+  if (/^\d+$/.test(v)) return Math.min(60, Number(v));
+  const t = Date.parse(v);
+  if (Number.isNaN(t)) return undefined;
+  return Math.max(0, Math.min(60, Math.ceil((t - now) / 1000)));
+}
 
 const META_REFRESH = /<meta[^>]+http-equiv\s*=\s*["']?refresh["']?[^>]*>/i;
 
@@ -279,6 +291,7 @@ export async function probeLink(url: string, opts: Omit<SafeFetchOptions, "metho
       redirects: get.redirects,
       contentType: get.contentType,
       body,
+      retryAfter: get.status === 429 || get.status === 503 ? parseRetryAfter(get.headers.get("retry-after")) : undefined,
     };
   } catch (err) {
     const c = classifyError(err);

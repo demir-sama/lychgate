@@ -65,3 +65,18 @@ export function hostOf(raw: string): string | null {
 export function waybackUrl(timestamp: string, url: string, raw = false): string {
   return `https://web.archive.org/web/${timestamp}${raw ? "id_" : ""}/${url}`;
 }
+
+const ARCHIVE_HOSTS = ["archive.today", "archive.ph", "archive.is", "archive.li", "archive.md", "archive.vn", "webcitation.org", "perma.cc"];
+
+/** True for links that already point at an archived copy (they are frozen, so never "parked" or "drifted"). */
+export function isArchiveUrl(raw: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return false;
+  }
+  const host = u.hostname.toLowerCase().replace(/^www\./, "");
+  if (host === "web.archive.org" || host === "wayback.archive.org") return /^\/web\/\d{4,14}/.test(u.pathname);
+  return ARCHIVE_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+}

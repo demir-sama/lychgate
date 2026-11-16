@@ -24,6 +24,8 @@ export const THRESHOLDS = {
 };
 
 export type Evidence = {
+  /** the link itself points at an archive (web.archive.org/web/…, archive.today, …) */
+  archived?: boolean;
   status?: number;
   error?: { kind: FetchErrorKind; code?: string; message: string };
   finalUrl?: string;
@@ -60,6 +62,10 @@ export function classify(ev: Evidence): Verdict {
 
   if (ev.error?.kind === "ssrf") {
     return { cls: "sealed", confidence: 1, reasons: [`Refused to fetch: ${ev.error.message}`] };
+  }
+
+  if (ev.archived && !ev.error && (ev.status ?? 0) >= 200 && (ev.status ?? 0) < 300 && !ev.notFoundText) {
+    return { cls: "living", confidence: 0.9, reasons: ["Already points at an archived copy, which is frozen in time. Nothing to resurrect."] };
   }
 
   if (ev.parked) {

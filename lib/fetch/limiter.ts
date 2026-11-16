@@ -40,9 +40,25 @@ export class Semaphore {
   }
 }
 
-/** Global concurrency cap plus a per-host cap (default 8 per host, spec requirement). */
+const sleep = (ms: number, signal?: AbortSignal) =>
+  new Promise<void>((resolve) => {
+    if (ms <= 0 || signal?.aborted) return resolve();
+    const t = setTimeout(done, ms);
+    function done() {
+      clearTimeout(t);
+      signal?.removeEventListener("abort", done);
+      resolve();
+    }
+    signal?.addEventListener("abort", done, { once: true });
+  });
+
+/**
+ * Global concurrency cap plus a per-host cap (default 8 per host, spec requirement).
+ * `cool(host, ms)` pauses new requests to a host that answered 429/503.
+ */
 export class HostLimiter {
   private hosts = new Map<string, Semaphore>();
+  private cooldown = new Map<string, number>();
   private global: Semaphore;
   constructor(
     readonly perHost = 8,
@@ -61,13 +77,25 @@ export class HostLimiter {
   activeFor(host: string) {
     return this.hosts.get(host)?.running ?? 0;
   }
-  async run<T>(url: string, fn: () => Promise<T>): Promise<T> {
-    let host = "invalid";
+  private hostOf(url: string) {
     try {
-      host = new URL(url).hostname.toLowerCase();
+      return new URL(url).hostname.toLowerCase();
     } catch {
-      /* keep */
+      return "invalid";
     }
+  }
+  /** Hold new requests to this URL's host for `ms` (extends, never shortens, an existing pause). */
+  cool(url: string, ms: number, now = Date.now()) {
+    const host = this.hostOf(url);
+    this.cooldown.set(host, Math.max(this.cooldown.get(host) ?? 0, now + ms));
+  }
+  cooledUntil(url: string) {
+    return this.cooldown.get(this.hostOf(url)) ?? 0;
+  }
+  async run<T>(url: string, fn: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+    const host = this.hostOf(url);
+    const until = this.cooldown.get(host) ?? 0;
+    if (until > Date.now()) await sleep(until - Date.now(), signal);
     return this.forHost(host).run(() => this.global.run(fn));
   }
 }
