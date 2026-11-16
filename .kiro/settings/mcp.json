@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "lychgate": {
+      "command": "node",
+      "args": ["packages/lychgate-mcp/dist/index.js"],
+      "disabled": true,
+      "_comment": "Enable after lychgate-mcp is built; used for dogfood hooks and Kiro write-up."
+    }
+  }
+}
