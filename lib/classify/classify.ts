@@ -109,7 +109,14 @@ export function classify(ev: Evidence): Verdict {
   if (status === 404 || status === 410) {
     return { cls: "tombstone", confidence: status === 410 ? 0.99 : 0.95, reasons: [`HTTP ${status} ${status === 410 ? "Gone" : "Not Found"}.`] };
   }
-  if (status === 401 || status === 403 || status === 429 || status === 999 || status >= 500 || status === 0) {
+  if (status === 429) {
+    return {
+      cls: "restless",
+      confidence: 0.3,
+      reasons: ["HTTP 429: the site is rate-limiting link checkers right now (we backed off and retried). Unconfirmed, not dead; re-scan later."],
+    };
+  }
+  if (status === 401 || status === 403 || status === 999 || status >= 500 || status === 0) {
     return {
       cls: "restless",
       confidence: 0.3,

@@ -21,6 +21,7 @@ describe("classify: rules", () => {
     expect(classify({ error: { kind: "timeout", message: "x" } }).cls).toBe("restless");
     expect(classify({ error: { kind: "tls", message: "x" } }).cls).toBe("restless");
     for (const s of [401, 403, 429, 500, 502, 503, 999]) expect(classify({ status: s }).cls).toBe("restless");
+    expect(classify({ status: 429 }).reasons[0]).toMatch(/rate-limiting/);
     expect(classify({ status: 400 }).cls).toBe("restless");
     expect(classify({ status: 304 }).cls).toBe("restless");
     expect(classify({}).cls).toBe("restless");

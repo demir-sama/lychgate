@@ -19,3 +19,4 @@
 - [ ] 15. Calibrate thresholds on a labelled sample (≥ 200 links) and report precision per class
 - [ ] 16. Relative links in GitHub Markdown (resolve to blob URLs / repo files)
 - [ ] 17. Resurrect from 3xx-only captures (e.g. login-redirect pages that never had a 200 snapshot)
+- [ ] 18. github.com links: confirm repos/users through the GitHub API with a server-side `GITHUB_TOKEN` (GitHub answers 429 to HTML checks from shared cloud IPs; ~58 of 300 links in the demo repo stay Restless without it)
