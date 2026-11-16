@@ -216,6 +216,23 @@ export type LinkProbe = {
   error?: { kind: FetchErrorKind; code?: string; message: string };
 };
 
+const META_REFRESH = /<meta[^>]+http-equiv\s*=\s*["']?refresh["']?[^>]*>/i;
+
+/** Absolute target of a meta-refresh tag, if any. */
+export function metaRefreshTarget(html: string, base: string): string | null {
+  const tag = META_REFRESH.exec(html)?.[0];
+  if (!tag) return null;
+  const content = /content\s*=\s*(["'])(.*?)\1/i.exec(tag)?.[2] ?? "";
+  const m = /url\s*=\s*['"]?([^'";]+)/i.exec(content);
+  if (!m) return null;
+  try {
+    const target = new URL(m[1].trim(), base).href;
+    return target === base ? null : target;
+  } catch {
+    return null;
+  }
+}
+
 const isHtml = (ct: string) => ct.includes("text/html") || ct.includes("application/xhtml");
 
 /**
@@ -239,7 +256,19 @@ export async function probeLink(url: string, opts: Omit<SafeFetchOptions, "metho
     return { url, ok: true, method: "HEAD", status: head!.status, finalUrl: head!.finalUrl, redirects: head!.redirects, contentType: head!.contentType };
   }
   try {
-    const get = await safeFetch(url, { ...opts, method: "GET", readBody: opts.wantBody !== false });
+    let get = await safeFetch(url, { ...opts, method: "GET", readBody: opts.wantBody !== false });
+    // Follow one <meta http-equiv="refresh"> stub (common for http→https and "moved" pages).
+    const refresh = get.status === 200 && get.body && get.body.length < 8192 ? metaRefreshTarget(get.body, get.finalUrl) : null;
+    if (refresh && get.redirects.length < MAX_REDIRECTS) {
+      const hop: RedirectHop = { from: get.finalUrl, to: refresh, status: 200 };
+      try {
+        const next = await safeFetch(refresh, { ...opts, method: "GET", readBody: opts.wantBody !== false, maxRedirects: MAX_REDIRECTS - get.redirects.length - 1 });
+        get = { ...next, redirects: [...get.redirects, hop, ...next.redirects] };
+      } catch (err) {
+        if (err instanceof FetchFailure) throw new FetchFailure(err.kind, err.message, [...get.redirects, hop, ...err.redirects], err.code);
+        throw err;
+      }
+    }
     const body = isHtml(get.contentType) || get.contentType === "" ? get.body : undefined;
     return {
       url,

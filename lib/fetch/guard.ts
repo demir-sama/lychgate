@@ -4,9 +4,40 @@ import { checkIp, isIpLiteral } from "../net/ip";
 export type ResolvedAddress = { address: string; family: 4 | 6 };
 export type Resolver = (hostname: string) => Promise<ResolvedAddress[]>;
 
-export const defaultResolver: Resolver = async (hostname) => {
-  const res = await dnsLookup(hostname, { all: true, verbatim: true });
-  return res.map((r) => ({ address: r.address, family: r.family === 6 ? 6 : 4 }));
+/** Resolver errors worth one retry (serverless resolvers return EBUSY/EAI_AGAIN under load). */
+export const TRANSIENT_DNS = new Set(["EAI_AGAIN", "EBUSY", "ETIMEOUT", "ESERVFAIL", "ECONNREFUSED", "ETIMEDOUT", "EAI_FAIL", "EAI_SYSTEM"]);
+/** Codes that mean "this name has no address": the only DNS failures we treat as dead. */
+export const NXDOMAIN_CODES = new Set(["ENOTFOUND", "ENODATA", "EAI_NONAME", "ENONAME"]);
+
+const dnsCache = new Map<string, { exp: number; p: Promise<ResolvedAddress[]> }>();
+
+async function lookupWithRetry(hostname: string): Promise<ResolvedAddress[]> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const res = await dnsLookup(hostname, { all: true, verbatim: true });
+      return res.map((r) => ({ address: r.address, family: r.family === 6 ? 6 : 4 }));
+    } catch (err) {
+      const code = (err as { code?: string }).code ?? "";
+      if (attempt >= 2 || !TRANSIENT_DNS.has(code)) throw err;
+      await new Promise((r) => setTimeout(r, 150 * (attempt + 1)));
+    }
+  }
+}
+
+/**
+ * System resolver with a 30 s per-host cache. The cache also means the pre-flight check and the
+ * connect-time check see the same answer, and halves resolver load during a scan.
+ */
+export const defaultResolver: Resolver = (hostname) => {
+  const key = hostname.toLowerCase();
+  const now = Date.now();
+  const hit = dnsCache.get(key);
+  if (hit && hit.exp > now) return hit.p;
+  if (dnsCache.size > 2000) dnsCache.clear();
+  const p = lookupWithRetry(key);
+  dnsCache.set(key, { exp: now + 30_000, p });
+  p.catch(() => dnsCache.delete(key));
+  return p;
 };
 
 export const ALLOWED_PORTS = new Set(["", "80", "443", "8080", "8443"]);

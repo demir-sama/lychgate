@@ -1,5 +1,8 @@
 import type { FetchErrorKind } from "../fetch/http";
 
+/** DNS failure codes that mean the name has no address (kept in sync with guard.ts NXDOMAIN_CODES). */
+const NXDOMAIN = new Set(["ENOTFOUND", "ENODATA", "EAI_NONAME", "ENONAME"]);
+
 export const LINK_CLASSES = ["living", "tombstone", "ghost", "drifted", "zombie", "restless", "sealed"] as const;
 export type LinkClass = (typeof LINK_CLASSES)[number];
 /** Classes that mean "the cited content is gone". */
@@ -16,6 +19,8 @@ export const THRESHOLDS = {
   softProbe: 0.9,
   /** length ratio needed alongside softProbe similarity */
   softProbeLength: 0.8,
+  /** below this much visible text an identical probe is more likely an SPA shell or stub than a soft-404 */
+  softProbeMinText: 400,
 };
 
 export type Evidence = {
@@ -26,7 +31,8 @@ export type Evidence = {
   title?: string;
   notFoundText?: boolean;
   redirectedToRoot?: boolean;
-  softProbe?: { status: number; similarity: number; lengthRatio: number; titleMatch: boolean };
+  /** live page vs a made-up sibling URL; liveTextLength = visible text chars of the live page */
+  softProbe?: { status: number; similarity: number; lengthRatio: number; titleMatch: boolean; liveTextLength?: number };
   parked?: { signature: string };
   rdap?: { status: "found" | "not_found" | "unknown"; registered?: string };
   citeDate?: string;
@@ -76,7 +82,7 @@ export function classify(ev: Evidence): Verdict {
 
   if (ev.error) {
     const { kind, code } = ev.error;
-    if (kind === "dns" && code !== "EAI_AGAIN") {
+    if (kind === "dns" && NXDOMAIN.has(code ?? "")) {
       if (ev.rdap?.status === "not_found") {
         return {
           cls: "tombstone",
@@ -121,7 +127,17 @@ export function classify(ev: Evidence): Verdict {
   }
 
   const ghostSignals: Array<[number, string]> = [];
-  if (ev.softProbe && ev.softProbe.status >= 200 && ev.softProbe.status < 300 && ev.softProbe.similarity >= THRESHOLDS.softProbe && ev.softProbe.lengthRatio >= THRESHOLDS.softProbeLength) {
+  const sp = ev.softProbe;
+  const probeLooksSame = !!sp && sp.status >= 200 && sp.status < 300 && sp.similarity >= THRESHOLDS.softProbe && sp.lengthRatio >= THRESHOLDS.softProbeLength;
+  const thinPage = (sp?.liveTextLength ?? Number.POSITIVE_INFINITY) < THRESHOLDS.softProbeMinText;
+  if (probeLooksSame && thinPage && !ev.notFoundText && !ev.redirectedToRoot) {
+    return {
+      cls: "restless",
+      confidence: 0.35,
+      reasons: ["Every URL on this site returns the same nearly-empty page (likely a JavaScript app shell), so we can't tell from the server whether this page still exists."],
+    };
+  }
+  if (ev.softProbe && probeLooksSame && !thinPage) {
     ghostSignals.push([0.8, `Looks the same as a made-up URL on the same site (${Math.round(ev.softProbe.similarity * 100)}% similar${ev.softProbe.titleMatch ? ", same title" : ""}), so the server answers 200 for pages that don't exist.`]);
   }
   if (ev.notFoundText) ghostSignals.push([0.75, `Returns 200 but the page says it is missing${ev.title ? ` ("${ev.title.slice(0, 80)}")` : ""}.`]);

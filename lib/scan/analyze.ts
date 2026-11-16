@@ -4,6 +4,7 @@ import { cosineSimilarity, lengthRatio, parseHtml } from "../classify/html";
 import { detectParked, looksLikeNotFound, redirectedToRoot } from "../classify/signals";
 import { lookupRdap } from "../domain/rdap";
 import { HostLimiter, Semaphore } from "../fetch/limiter";
+import { NXDOMAIN_CODES } from "../fetch/guard";
 import { probeLink, type SafeFetchOptions } from "../fetch/http";
 import type { LinkResult, Target } from "./types";
 
@@ -84,12 +85,13 @@ export async function analyzeTarget(target: Target, ctx: ScanContext): Promise<L
         similarity: cosineSimilarity(liveText, sp.text),
         lengthRatio: lengthRatio(liveLen, sp.text.length),
         titleMatch: !!ev.title && ev.title === sp.title,
+        liveTextLength: liveLen,
       };
     }
   }
 
   // RDAP: takeover check when we know the cite date, or when DNS says the domain is gone.
-  const dnsDead = probe.error?.kind === "dns" && probe.error.code !== "EAI_AGAIN";
+  const dnsDead = probe.error?.kind === "dns" && NXDOMAIN_CODES.has(probe.error.code ?? "");
   if ((citeDate || dnsDead) && !ctx.signal?.aborted && probe.error?.kind !== "ssrf") {
     const r = await ctx.rdap.run(() => lookupRdap(url.hostname, ctx.deps));
     ev.rdap = { status: r.status, registered: r.registered };
