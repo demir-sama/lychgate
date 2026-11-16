@@ -12,7 +12,9 @@
 - [x] 10. Pure `classify()` decision table — R5
 - [x] 11. Engine async generator + NDJSON route with rate limit and time budget — R4.7, R7
 - [x] 12. Tests: unit + fast-check properties (URL canonicalisation idempotent, snapshot picker, classifier never-dead-on-match, patch-only-targets) — testing.md
+- [x] 12a. Live-scan fixes: DNS retry/cache and NXDOMAIN-only tombstones; SPA-shell guard; meta-refresh follow — R5.5, R5.8, R5.9
 - [ ] 13. Shared cache across instances (Neon) for Wayback/RDAP results
 - [ ] 14. Per-link cite date for website input (earliest Wayback capture of the citing page that contains the link)
 - [ ] 15. Calibrate thresholds on a labelled sample (≥ 200 links) and report precision per class
 - [ ] 16. Relative links in GitHub Markdown (resolve to blob URLs / repo files)
+- [ ] 17. Resurrect from 3xx-only captures (e.g. login-redirect pages that never had a 200 snapshot)

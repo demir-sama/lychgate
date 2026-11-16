@@ -34,7 +34,9 @@ UI lives in `graveyard-ui`; patching in `resurrection-engine`.
 - R5.2 IF a 2xx page looks like a made-up sibling URL on the same site (cosine ≥ 0.9 and length ratio ≥ 0.8), says it is missing in its title or opening text, or a deep link redirects to the home page, THEN the link shall be a **Ghost**.
 - R5.3 WHERE a cite date and a 200 snapshot at or before it exist, and the link is a deep link, IF the live text is < 35% similar to that snapshot, THEN the link shall be **Drifted**.
 - R5.4 IF the page matches a parked or for-sale signature or lands on a parking host, OR RDAP shows the domain was registered more than a day after the cite date, THEN the link shall be a **Zombie** (security risk).
-- R5.5 IF the server returns 401/403/429/5xx, times out, or fails TLS, THEN the link shall be **Restless** (unconfirmed), never dead.
+- R5.5 IF the server returns 401/403/429/5xx, times out, fails TLS, or DNS fails with anything other than "no such name" (e.g. EBUSY, SERVFAIL, EAI_AGAIN, retried twice first), THEN the link shall be **Restless** (unconfirmed), never dead.
+- R5.8 IF a made-up sibling URL returns the same page AND the live page has under 400 characters of visible text (a JavaScript app shell or stub), THEN the link shall be Restless rather than Ghost.
+- R5.9 WHEN a 200 page under 8 KB is only a `<meta http-equiv="refresh">` stub, the system shall follow it once, through the SSRF guard, and analyse the target.
 - R5.6 The classifier shall never label a 2xx whose content is ≥ 80% similar to the cited snapshot as Tombstone or Ghost.
 - R5.7 Every verdict shall carry a confidence in [0, 1] and at least one human-readable reason.
 
