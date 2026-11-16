@@ -1,24 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LinkClass } from "@/lib/classify/classify";
 import { patchMarkdown, unifiedDiff } from "@/lib/patch/patch";
 import type { Doc, LinkResult, ScanEvent, ScanSummary } from "@/lib/scan/types";
+import { GateScene } from "./graveyard/GateScene";
+import { GraveCard, graveId } from "./graveyard/GraveCard";
+import { HealthGauge } from "./graveyard/HealthGauge";
+import { SpiritIcon } from "./graveyard/icons";
+import { Plot } from "./graveyard/Plot";
+import { DEFAULT_RESURRECT, ORDER, RESURRECTABLE, SPIRITS, fmtTs } from "./graveyard/spirits";
 
 type Mode = "github" | "site" | "markdown";
-
-export const SPIRITS: Record<LinkClass, { label: string; icon: string; blurb: string }> = {
-  living: { label: "Living", icon: "🕯️", blurb: "Healthy" },
-  tombstone: { label: "Tombstone", icon: "🪦", blurb: "404, 410 or the domain is gone" },
-  ghost: { label: "Ghost", icon: "👻", blurb: "Soft-404: answers 200 but the page is gone" },
-  drifted: { label: "Drifted", icon: "🌫️", blurb: "Live, but no longer says what was cited" },
-  zombie: { label: "Zombie", icon: "🧟", blurb: "Domain parked or re-registered since it was cited (security risk)" },
-  restless: { label: "Restless", icon: "🌀", blurb: "Couldn't confirm (bot-blocked, timeout or server error)" },
-  sealed: { label: "Sealed", icon: "🔒", blurb: "Refused: private or internal address" },
-};
-const ORDER: LinkClass[] = ["zombie", "tombstone", "ghost", "drifted", "restless", "sealed", "living"];
-const DEFAULT_RESURRECT = new Set<LinkClass>(["tombstone", "ghost", "zombie"]);
-const RESURRECTABLE = new Set<LinkClass>(["tombstone", "ghost", "zombie", "drifted"]);
+const MODES: Array<[Mode, string]> = [
+  ["github", "GitHub repo"],
+  ["site", "Website"],
+  ["markdown", "Markdown"],
+];
 
 const SAMPLE_MD = `# Reading list
 
@@ -29,12 +28,13 @@ const SAMPLE_MD = `# Reading list
 - [Cloud metadata (refused)](http://169.254.169.254/latest/meta-data/)
 `;
 
-function fmtDate(iso?: string) {
-  return iso ? iso.slice(0, 10) : "unknown";
-}
-function fmtTs(ts: string) {
-  return `${ts.slice(0, 4)}-${ts.slice(4, 6)}-${ts.slice(6, 8)}`;
-}
+const PRESETS: Array<{ label: string; mode: Mode; value: string }> = [
+  { label: "the-art-of-command-line", mode: "github", value: "jlevy/the-art-of-command-line" },
+  { label: "sindresorhus/awesome", mode: "github", value: "sindresorhus/awesome" },
+  { label: "a haunted reading list", mode: "markdown", value: SAMPLE_MD },
+];
+
+const BESTIARY: LinkClass[] = ["living", "tombstone", "ghost", "drifted", "zombie"];
 
 function download(name: string, content: string, type = "text/markdown") {
   const blob = new Blob([content], { type: `${type};charset=utf-8` });
@@ -65,9 +65,14 @@ export default function Scanner() {
   const [summary, setSummary] = useState<ScanSummary | null>(null);
   const [filter, setFilter] = useState<LinkClass | "all">("all");
   const [chosen, setChosen] = useState<Record<string, boolean>>({});
+  const [openGrave, setOpenGrave] = useState<string | null>(null);
   const [daylight, setDaylight] = useState(false);
+  const [copied, setCopied] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const inputRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
+  const listRef = useRef<HTMLOListElement>(null);
 
+  // Theme: persisted; defaults to Daylight for users who ask for more contrast.
   useEffect(() => {
     const saved = localStorage.getItem("lychgate:daylight");
     if (saved === "1" || (saved === null && window.matchMedia?.("(prefers-contrast: more)").matches)) setDaylight(true);
@@ -84,9 +89,16 @@ export default function Scanner() {
   }, [results]);
   const scored = counts.living + counts.drifted + counts.tombstone + counts.ghost + counts.zombie;
   const health = summary?.health ?? (scored ? Math.round(((counts.living + counts.drifted * 0.5) / scored) * 100) : 100);
+  const started = running || results.length > 0 || total > 0;
+
+  // Fog density follows health: a healthy site has a clear night.
+  useEffect(() => {
+    const fog = started ? Math.max(0.12, (100 - health) / 100) : 0.35;
+    document.documentElement.style.setProperty("--fog", fog.toFixed(2));
+  }, [health, started]);
 
   const sorted = useMemo(
-    () => [...results].filter((r) => filter === "all" || r.cls === filter).sort((a, b) => ORDER.indexOf(a.cls) - ORDER.indexOf(b.cls) || b.confidence - a.confidence),
+    () => results.filter((r) => filter === "all" || r.cls === filter).sort((a, b) => ORDER.indexOf(a.cls) - ORDER.indexOf(b.cls) || b.confidence - a.confidence),
     [results, filter],
   );
 
@@ -95,6 +107,9 @@ export default function Scanner() {
     for (const r of results) if (r.snapshot && RESURRECTABLE.has(r.cls) && chosen[r.url]) m.set(r.url, r.snapshot.url);
     return m;
   }, [results, chosen]);
+
+  const patched = useMemo(() => docs.map((d) => ({ doc: d, ...patchMarkdown(d.content, replacements) })), [docs, replacements]);
+  const changedCount = patched.reduce((n, p) => n + p.changed.length, 0);
 
   async function scan(e: React.FormEvent) {
     e.preventDefault();
@@ -106,9 +121,11 @@ export default function Scanner() {
     setWarnings([]);
     setResults([]);
     setDocs([]);
+    setTotal(0);
     setSummary(null);
     setChosen({});
     setFilter("all");
+    setOpenGrave(null);
     setStatus("Opening the gate…");
     const body =
       mode === "github" ? { kind: "github", repo } : mode === "site" ? { kind: "site", url: site, sitemap, citeDate } : { kind: "markdown", text: md, citeDate };
@@ -120,6 +137,20 @@ export default function Scanner() {
       }
       const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
       let buf = "";
+      // Batch results per animation frame so a fast burst doesn't re-render 300 times.
+      let batch: LinkResult[] = [];
+      let raf = 0;
+      const flush = () => {
+        raf = 0;
+        const b = batch;
+        batch = [];
+        setResults((prev) => [...prev, ...b]);
+        setChosen((c) => {
+          const n = { ...c };
+          for (const r of b) if (r.snapshot && DEFAULT_RESURRECT.has(r.cls)) n[r.url] = true;
+          return n;
+        });
+      };
       for (;;) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -136,235 +167,364 @@ export default function Scanner() {
             setTotal(ev.total);
             setDocs(ev.docs);
             setWarnings(ev.warnings);
-            setStatus(`Checking ${ev.total} links…`);
+            setStatus(ev.total ? `Walking ${ev.total} graves…` : "No links found.");
           } else if (ev.type === "result") {
-            const r = ev.result;
-            setResults((prev) => [...prev, r]);
-            if (r.snapshot && DEFAULT_RESURRECT.has(r.cls)) setChosen((c) => ({ ...c, [r.url]: true }));
+            batch.push(ev.result);
+            if (!raf) raf = requestAnimationFrame(flush);
           } else if (ev.type === "done") {
+            if (raf) cancelAnimationFrame(raf);
+            flush();
             setSummary(ev.summary);
-            setStatus(`Done in ${(ev.ms / 1000).toFixed(1)}s.`);
+            setStatus(`The gate is closed. ${ev.summary.total} links checked in ${(ev.ms / 1000).toFixed(1)}s.`);
           } else if (ev.type === "error") setError(ev.message);
         }
       }
+      if (raf) {
+        cancelAnimationFrame(raf);
+        flush();
+      }
     } catch (err) {
-      if ((err as Error).name !== "AbortError") setError((err as Error).message);
+      if ((err as Error).name === "AbortError") setStatus("Scan stopped.");
+      else setError((err as Error).message);
     } finally {
       setRunning(false);
     }
   }
 
-  function patchedDocs() {
-    return docs.map((d) => ({ ...d, ...patchMarkdown(d.content, replacements) }));
-  }
-
-  function downloadPatched(d: Doc) {
-    const p = patchMarkdown(d.content, replacements);
-    download(d.path.split("/").pop() ?? "patched.md", p.content);
-  }
-
   function downloadDiff() {
-    const diff = patchedDocs()
-      .map((p) => unifiedDiff(p.path, docs.find((d) => d.path === p.path)!.content, p.content))
+    const diff = patched
+      .map((p) => unifiedDiff(p.doc.path, p.doc.content, p.content))
       .filter(Boolean)
       .join("\n");
     download("lychgate.diff", diff || "# no changes selected\n", "text/x-diff");
   }
 
-  function downloadReport() {
-    const lines = [`# Lychgate report: ${source}`, "", `Health: ${health}/100 · ${results.length} links`, ""];
+  function reportMarkdown() {
+    const lines = [`# Lychgate report: ${source}`, "", `Health ${health}/100 · ${results.length} links`, ""];
     for (const r of sorted) {
       lines.push(`- **${SPIRITS[r.cls].label}** ${r.url}${r.snapshot ? ` → [snapshot ${fmtTs(r.snapshot.timestamp)}](${r.snapshot.url})` : ""}`);
       lines.push(`  - ${r.reasons.join(" ")}`);
     }
-    download("lychgate-report.md", lines.join("\n") + "\n");
+    return lines.join("\n") + "\n";
   }
 
-  const done = !!summary;
-  const changedCount = docs.length ? patchedDocs().reduce((n, p) => n + p.changed.length, 0) : 0;
+  function prDescription() {
+    const fixed = results.filter((r) => replacements.has(r.url));
+    const lines = [
+      "## Resurrect dead links",
+      "",
+      `Lychgate found ${counts.tombstone + counts.ghost + counts.zombie} dead or unsafe links in ${source} (health ${health}/100). This PR points ${fixed.length} of them at the Wayback Machine snapshot closest to when each link was cited.`,
+      "",
+      "| Link | Diagnosis | Snapshot |",
+      "|---|---|---|",
+      ...fixed.map((r) => `| ${r.url} | ${SPIRITS[r.cls].label}: ${r.reasons[0].replace(/\|/g, "\\|")} | [${fmtTs(r.snapshot!.timestamp)}](${r.snapshot!.url}) |`),
+      "",
+      "_Checked with [Lychgate](https://github.com/demir-sama/lychgate)._",
+    ];
+    return lines.join("\n") + "\n";
+  }
+
+  async function copyPr() {
+    try {
+      await navigator.clipboard.writeText(prDescription());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      download("pr-description.md", prDescription());
+    }
+  }
+
+  function applyPreset(p: (typeof PRESETS)[number]) {
+    setMode(p.mode);
+    if (p.mode === "github") setRepo(p.value);
+    else if (p.mode === "markdown") setMd(p.value);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }
+
+  const focusGrave = useCallback((url: string, open = true) => {
+    const el = document.getElementById(graveId(url));
+    if (!el) return;
+    if (open) setOpenGrave(url);
+    el.focus({ preventScroll: true });
+    el.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  }, []);
+
+  // Keyboard: "/" focuses the input, j/k walk the graves, Esc closes evidence.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const t = e.target as HTMLElement;
+      const typing = t.closest("input, textarea, select, [contenteditable=true]");
+      if (e.key === "/" && !typing) {
+        e.preventDefault();
+        inputRef.current?.focus();
+        return;
+      }
+      if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === "j" || e.key === "k") {
+        const items = Array.from(listRef.current?.querySelectorAll<HTMLElement>(":scope > .grave") ?? []);
+        if (!items.length) return;
+        const cur = items.findIndex((el) => el.contains(document.activeElement));
+        const next = e.key === "j" ? Math.min(items.length - 1, cur + 1) : Math.max(0, cur === -1 ? 0 : cur - 1);
+        e.preventDefault();
+        items[next].focus();
+        items[next].scrollIntoView({ block: "nearest" });
+      } else if (e.key === "Enter" && t.classList.contains("grave")) {
+        const url = sorted.find((r) => graveId(r.url) === t.id)?.url;
+        if (url) setOpenGrave((o) => (o === url ? null : url));
+      } else if (e.key === "Escape") setOpenGrave(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sorted]);
+
+  function onTabKey(e: React.KeyboardEvent, i: number) {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    e.preventDefault();
+    const next = MODES[(i + (e.key === "ArrowRight" ? 1 : MODES.length - 1)) % MODES.length][0];
+    setMode(next);
+    document.getElementById(`tab-${next}`)?.focus();
+  }
+
+  const progress = total ? Math.round((results.length / total) * 100) : 0;
+  const dead = counts.tombstone + counts.ghost + counts.zombie;
 
   return (
-    <section className="scanner" aria-label="Scan links">
-      <div className="toolbar">
-        <button type="button" className="ghostbtn" aria-pressed={daylight} onClick={() => setDaylight((d) => !d)}>
-          {daylight ? "🌙 Night mode" : "☀️ Daylight mode"}
+    <>
+      <div className="topbar">
+        <Link className="brand" href="/" aria-label="Lychgate home">
+          <span className="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" width="26" height="26">
+              <path d="M2 12 Q10 11 16 4 Q22 11 30 12 L28 14 Q22 13 16 7 Q10 13 4 14Z" fill="currentColor" />
+              <rect x="7" y="13" width="3" height="16" fill="currentColor" />
+              <rect x="22" y="13" width="3" height="16" fill="currentColor" />
+              <rect x="14.5" y="16" width="3" height="5" rx="1" fill="var(--lantern)" />
+            </svg>
+          </span>
+          Lychgate
+        </Link>
+        <button type="button" className="btn btn-quiet theme-toggle" aria-pressed={daylight} onClick={() => setDaylight((d) => !d)}>
+          <span aria-hidden="true">{daylight ? "☾" : "☀"}</span> {daylight ? "Night" : "Daylight"} mode
         </button>
       </div>
 
-      <form onSubmit={scan} className="gate">
-        <div role="tablist" aria-label="What to scan" className="tabs">
-          {(
-            [
-              ["github", "GitHub repo"],
-              ["site", "Website"],
-              ["markdown", "Paste Markdown"],
-            ] as const
-          ).map(([m, label]) => (
-            <button key={m} type="button" role="tab" aria-selected={mode === m} aria-controls={`panel-${m}`} id={`tab-${m}`} className="tab" onClick={() => setMode(m)}>
-              {label}
+      <header className="hero">
+        <GateScene open={running} />
+        <div className="hero-copy">
+          <p className="eyebrow">Kiroween 2026 · a link checker in costume</p>
+          <h1>
+            Every dead link,
+            <br />
+            <em>and how it died.</em>
+          </h1>
+          <p className="lede">Lychgate walks your docs, names each broken link&rsquo;s cause of death, and brings it back from the Wayback Machine copy closest to the day you cited it.</p>
+        </div>
+      </header>
+
+      <main className="shell" id="main">
+        <form onSubmit={scan} className="gate" aria-label="Scan links">
+          <div role="tablist" aria-label="What to scan" className="tabs">
+            {MODES.map(([m, label], i) => (
+              <button
+                key={m}
+                type="button"
+                role="tab"
+                id={`tab-${m}`}
+                aria-selected={mode === m}
+                aria-controls="gate-panel"
+                tabIndex={mode === m ? 0 : -1}
+                className="tab"
+                onClick={() => setMode(m)}
+                onKeyDown={(e) => onTabKey(e, i)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div role="tabpanel" id="gate-panel" aria-labelledby={`tab-${mode}`} className="panel">
+            {mode === "github" && (
+              <>
+                <label htmlFor="repo">Public repository</label>
+                <div className="field">
+                  <span className="field-pre" aria-hidden="true">github.com/</span>
+                  <input ref={inputRef} id="repo" value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="owner/repo" required autoComplete="off" spellCheck={false} aria-describedby="repo-hint" />
+                </div>
+                <p className="hint" id="repo-hint">
+                  Up to 20 Markdown files, README first. Git history dates each link, so we can find the snapshot from the day it was added.
+                </p>
+              </>
+            )}
+            {mode === "site" && (
+              <>
+                <label htmlFor="site">Page or sitemap URL</label>
+                <input ref={inputRef} id="site" type="url" value={site} onChange={(e) => setSite(e.target.value)} placeholder="https://example.com/blog/post" required autoComplete="url" spellCheck={false} />
+                <label className="check">
+                  <input type="checkbox" checked={sitemap} onChange={(e) => setSitemap(e.target.checked)} /> Also read /sitemap.xml (up to 12 pages)
+                </label>
+              </>
+            )}
+            {mode === "markdown" && (
+              <>
+                <label htmlFor="md">Markdown, or one URL per line</label>
+                <textarea ref={inputRef} id="md" value={md} onChange={(e) => setMd(e.target.value)} rows={7} required spellCheck={false} />
+              </>
+            )}
+            {mode !== "github" && (
+              <div className="inline">
+                <label htmlFor="cite">Links cited on</label>
+                <input id="cite" type="date" value={citeDate} onChange={(e) => setCiteDate(e.target.value)} aria-describedby="cite-hint" />
+                <span className="hint" id="cite-hint">
+                  Optional. Turns on drift and takeover checks against that date.
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="actions">
+            <button type="submit" className="btn btn-primary" disabled={running}>
+              <span className="btn-lantern" aria-hidden="true" />
+              {running ? "Raising the dead…" : "Open the gate"}
             </button>
+            {running && (
+              <button type="button" className="btn btn-quiet" onClick={() => abortRef.current?.abort()}>
+                Stop
+              </button>
+            )}
+            <span className="presets">
+              Try{" "}
+              {PRESETS.map((p, i) => (
+                <span key={p.label}>
+                  <button type="button" className="linkish" onClick={() => applyPreset(p)}>
+                    {p.label}
+                  </button>
+                  {i < PRESETS.length - 1 ? ", " : ""}
+                </span>
+              ))}
+            </span>
+          </div>
+          <p className="kbd-hint">
+            <kbd>/</kbd> focus · <kbd>j</kbd>
+            <kbd>k</kbd> walk the graves · <kbd>Enter</kbd> evidence · <kbd>Esc</kbd> close
+          </p>
+        </form>
+
+        <div className="live" aria-live="polite" aria-atomic="false">
+          {status && (
+            <p className={`status ${running ? "is-running" : ""}`}>
+              {running && <span className="wisp" aria-hidden="true" />}
+              {status}
+            </p>
+          )}
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
+          {warnings.map((w) => (
+            <p key={w} className="warn">
+              {w}
+            </p>
           ))}
         </div>
 
-        {mode === "github" && (
-          <div role="tabpanel" id="panel-github" aria-labelledby="tab-github" className="panel">
-            <label htmlFor="repo">Public repo</label>
-            <input id="repo" value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="owner/repo or https://github.com/owner/repo" required autoComplete="off" spellCheck={false} />
-            <p className="hint">We read up to 20 Markdown files (README first) and use git history to date each link.</p>
-          </div>
+        {!started && (
+          <section className="bestiary" aria-labelledby="bestiary-h">
+            <h2 id="bestiary-h">Five ways a link dies</h2>
+            <ul>
+              {BESTIARY.map((k, i) => (
+                <li key={k} className={`beast c-${k}`} style={{ ["--i" as string]: i }}>
+                  <SpiritIcon cls={k} size={34} />
+                  <h3>{SPIRITS[k].label}</h3>
+                  <p>{SPIRITS[k].blurb}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
-        {mode === "site" && (
-          <div role="tabpanel" id="panel-site" aria-labelledby="tab-site" className="panel">
-            <label htmlFor="site">Page or sitemap URL</label>
-            <input id="site" type="url" value={site} onChange={(e) => setSite(e.target.value)} placeholder="https://example.com/blog/post" required autoComplete="url" spellCheck={false} />
-            <label className="check">
-              <input type="checkbox" checked={sitemap} onChange={(e) => setSitemap(e.target.checked)} /> Also read /sitemap.xml (up to 12 pages)
-            </label>
-          </div>
-        )}
-        {mode === "markdown" && (
-          <div role="tabpanel" id="panel-markdown" aria-labelledby="tab-markdown" className="panel">
-            <label htmlFor="md">Markdown or a list of URLs</label>
-            <textarea id="md" value={md} onChange={(e) => setMd(e.target.value)} rows={8} required spellCheck={false} />
-          </div>
-        )}
-        {mode !== "github" && (
-          <div className="panel inline">
-            <label htmlFor="cite">Links cited on (optional)</label>
-            <input id="cite" type="date" value={citeDate} onChange={(e) => setCiteDate(e.target.value)} />
-            <span className="hint">Enables drift and takeover checks against that date.</span>
-          </div>
-        )}
-        <div className="actions">
-          <button type="submit" className="primary" disabled={running}>
-            {running ? "Raising the dead…" : "Open the gate"}
-          </button>
-          {running && (
-            <button type="button" className="ghostbtn" onClick={() => abortRef.current?.abort()}>
-              Stop
-            </button>
-          )}
-        </div>
-      </form>
 
-      <div className="live" aria-live="polite">
-        {status && <p className="status">{status}</p>}
-        {error && (
-          <p className="error" role="alert">
-            {error}
-          </p>
-        )}
-        {warnings.map((w) => (
-          <p key={w} className="warn">
-            {w}
-          </p>
-        ))}
-      </div>
+        {started && total > 0 && (
+          <section className="yard" aria-labelledby="yard-h">
+            <div className="yard-head">
+              <HealthGauge health={health} settled={!!summary} />
+              <div className="yard-title">
+                <h2 id="yard-h">{source}</h2>
+                <p>
+                  {results.length} of {total} checked
+                  {dead > 0 ? ` · ${dead} dead or unsafe` : ""}
+                  {summary ? "" : "…"}
+                </p>
+                <div className="progress" aria-hidden="true">
+                  <span style={{ width: `${progress}%` }} />
+                </div>
+              </div>
+            </div>
 
-      {(results.length > 0 || running) && total > 0 && (
-        <>
-          <div className="fog" aria-label={`Health ${health} out of 100`}>
-            <div className="fogbar" style={{ ["--health" as string]: `${health}%` }} />
-            <p>
-              <strong>{source}</strong> · health <strong>{health}</strong>/100 · {results.length}/{total} checked
-            </p>
-          </div>
+            <Plot results={results} total={total} onPick={(u) => focusGrave(u)} />
 
-          <div className="chips" role="group" aria-label="Filter by spirit">
-            <button type="button" className="chip" aria-pressed={filter === "all"} onClick={() => setFilter("all")}>
-              All <span>{results.length}</span>
-            </button>
-            {ORDER.map((k) => (
-              <button key={k} type="button" className={`chip c-${k}`} aria-pressed={filter === k} onClick={() => setFilter(k)} title={SPIRITS[k].blurb}>
-                <span aria-hidden="true">{SPIRITS[k].icon}</span> {SPIRITS[k].label} <span>{counts[k]}</span>
+            <div className="chips" role="group" aria-label="Filter graves">
+              <button type="button" className="chip" aria-pressed={filter === "all"} onClick={() => setFilter("all")}>
+                All <span className="n">{results.length}</span>
               </button>
-            ))}
-          </div>
+              {ORDER.filter((k) => counts[k] > 0 || BESTIARY.includes(k)).map((k) => (
+                <button key={k} type="button" className={`chip c-${k}`} aria-pressed={filter === k} onClick={() => setFilter(k)} title={SPIRITS[k].blurb} disabled={counts[k] === 0}>
+                  <SpiritIcon cls={k} size={16} /> {SPIRITS[k].plural} <span className="n">{counts[k]}</span>
+                </button>
+              ))}
+            </div>
 
-          {done && (
-            <div className="exports">
-              {docs.length > 0 ? (
-                <>
+            {summary && (
+              <div className="exports" role="region" aria-label="Leave with the fix">
+                <div>
+                  <h3>Leave with the fix</h3>
                   <p>
-                    {changedCount} link{changedCount === 1 ? "" : "s"} selected for resurrection.
+                    {docs.length
+                      ? `${changedCount} link${changedCount === 1 ? "" : "s"} marked for resurrection across ${patched.filter((p) => p.changed.length).length} file${patched.filter((p) => p.changed.length).length === 1 ? "" : "s"}.`
+                      : "Website scans give a report; paste Markdown or scan a repo to get a patch."}
                   </p>
-                  {docs
-                    .filter((d) => patchMarkdown(d.content, replacements).changed.length > 0)
-                    .map((d) => (
-                      <button key={d.path} type="button" className="ghostbtn" onClick={() => downloadPatched(d)}>
-                        ⬇ Patched {d.path}
+                </div>
+                <div className="export-btns">
+                  {patched
+                    .filter((p) => p.changed.length > 0)
+                    .slice(0, 4)
+                    .map((p) => (
+                      <button key={p.doc.path} type="button" className="btn btn-quiet" onClick={() => download(p.doc.path.split("/").pop() ?? "patched.md", p.content)}>
+                        ↓ {p.doc.path}
                       </button>
                     ))}
-                  <button type="button" className="ghostbtn" onClick={downloadDiff}>
-                    ⬇ Unified diff
+                  {docs.length > 0 && (
+                    <>
+                      <button type="button" className="btn btn-quiet" onClick={downloadDiff} disabled={!changedCount}>
+                        ↓ Unified diff
+                      </button>
+                      <button type="button" className="btn btn-quiet" onClick={copyPr} disabled={!changedCount}>
+                        {copied ? "Copied ✓" : "Copy PR description"}
+                      </button>
+                    </>
+                  )}
+                  <button type="button" className="btn btn-quiet" onClick={() => download("lychgate-report.md", reportMarkdown())}>
+                    ↓ Report
                   </button>
-                </>
-              ) : null}
-              <button type="button" className="ghostbtn" onClick={downloadReport}>
-                ⬇ Report (.md)
-              </button>
-            </div>
-          )}
-
-          <ol className="graves">
-            {sorted.map((r) => (
-              <li key={r.url} className={`grave c-${r.cls}`}>
-                <div className="gravehead">
-                  <span className="badge" aria-label={`${SPIRITS[r.cls].label}: ${SPIRITS[r.cls].blurb}`}>
-                    <span aria-hidden="true">{SPIRITS[r.cls].icon}</span> {SPIRITS[r.cls].label}
-                  </span>
-                  <a className="url" href={r.url} target="_blank" rel="noopener noreferrer nofollow">
-                    {r.url}
-                  </a>
-                  <span className="conf" title="confidence">
-                    {Math.round(r.confidence * 100)}%
-                  </span>
                 </div>
-                <details>
-                  <summary>Cause of death &amp; evidence</summary>
-                  <ul className="evidence">
-                    {r.reasons.map((x) => (
-                      <li key={x}>{x}</li>
-                    ))}
-                    <li>
-                      HTTP {r.status ?? "none"}
-                      {r.redirects.length ? ` via ${r.redirects.length} redirect(s) to ${r.finalUrl}` : ""}
-                      {r.title ? ` · title “${r.title.slice(0, 90)}”` : ""}
-                    </li>
-                    <li>
-                      Cited: {fmtDate(r.citeDate)}
-                      {r.citeSource === "git" ? " (from git history)" : r.citeSource === "user" ? " (you said)" : ""}
-                      {r.drift !== undefined ? ` · ${Math.round(r.drift * 100)}% similar to the cited snapshot` : ""}
-                      {r.rdapRegistered ? ` · domain registered ${fmtDate(r.rdapRegistered)}` : ""}
-                    </li>
-                    <li>
-                      Found in:{" "}
-                      {r.occurrences
-                        .slice(0, 5)
-                        .map((o) => (o.line ? `${o.doc}:${o.line}` : o.doc))
-                        .join(", ")}
-                      {r.occurrences.length > 5 ? ` +${r.occurrences.length - 5} more` : ""}
-                    </li>
-                  </ul>
-                </details>
-                {r.snapshot && (
-                  <div className="snap">
-                    <a href={r.snapshot.url} target="_blank" rel="noopener noreferrer">
-                      Snapshot {fmtTs(r.snapshot.timestamp)}
-                    </a>
-                    <span className="hint">{r.snapshot.beforeCite ? " closest before it was cited" : " latest surviving copy"}</span>
-                    {RESURRECTABLE.has(r.cls) && docs.length > 0 && (
-                      <label className="check">
-                        <input type="checkbox" checked={!!chosen[r.url]} onChange={(e) => setChosen((c) => ({ ...c, [r.url]: e.target.checked }))} /> Resurrect in patch
-                      </label>
-                    )}
-                  </div>
-                )}
-              </li>
-            ))}
-          </ol>
-        </>
-      )}
-    </section>
+              </div>
+            )}
+
+            <ol className="graves" ref={listRef} aria-label="Checked links, worst first">
+              {sorted.map((r) => (
+                <GraveCard
+                  key={r.url}
+                  r={r}
+                  canPatch={docs.length > 0}
+                  chosen={!!chosen[r.url]}
+                  onChoose={(v) => setChosen((c) => ({ ...c, [r.url]: v }))}
+                  open={openGrave === r.url}
+                  onToggle={(v) => setOpenGrave((o) => (v ? r.url : o === r.url ? null : o))}
+                />
+              ))}
+            </ol>
+            {sorted.length === 0 && results.length > 0 && <p className="empty">No {filter === "all" ? "" : SPIRITS[filter as LinkClass].plural.toLowerCase()} here.</p>}
+          </section>
+        )}
+      </main>
+    </>
   );
 }
