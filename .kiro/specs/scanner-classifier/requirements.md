@@ -19,6 +19,7 @@ UI lives in `graveyard-ui`; patching in `resurrection-engine`.
 - R3.2 The system shall time out each request after 8 seconds, follow at most 5 redirects manually, and record every hop.
 - R3.3 The system shall send a polite User-Agent that names the project and links to the repo.
 - R3.4 The system shall run at most 8 concurrent requests per host (24 overall per scan).
+- R3.5 WHEN a host answers 429 or 503, the system shall pause new requests to that host (Retry-After up to 8 s, else 1.5 s doubling, plus jitter) and retry the link at most twice before reporting it Restless.
 
 ## R4 SSRF guard (security-critical)
 - R4.1 IF a URL is not http/https, carries credentials, or uses a port other than 80/443/8080/8443, THEN the system shall refuse it.
@@ -37,6 +38,7 @@ UI lives in `graveyard-ui`; patching in `resurrection-engine`.
 - R5.5 IF the server returns 401/403/429/5xx, times out, fails TLS, or DNS fails with anything other than "no such name" (e.g. EBUSY, SERVFAIL, EAI_AGAIN, retried twice first), THEN the link shall be **Restless** (unconfirmed), never dead.
 - R5.8 IF a made-up sibling URL returns the same page AND the live page has under 400 characters of visible text (a JavaScript app shell or stub), THEN the link shall be Restless rather than Ghost.
 - R5.9 WHEN a 200 page under 8 KB is only a `<meta http-equiv="refresh">` stub, the system shall follow it once, through the SSRF guard, and analyse the target.
+- R5.10 IF the link already points at an archived copy (web.archive.org/web/…, archive.today and mirrors, WebCite, perma.cc) and answers 2xx, THEN the link shall be **Living**, and parked, soft-404 and drift checks shall be skipped (archived pages are frozen; an old "for sale" banner says nothing about today).
 - R5.6 The classifier shall never label a 2xx whose content is ≥ 80% similar to the cited snapshot as Tombstone or Ghost.
 - R5.7 Every verdict shall carry a confidence in [0, 1] and at least one human-readable reason.
 
