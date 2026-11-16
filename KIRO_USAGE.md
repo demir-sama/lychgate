@@ -16,7 +16,7 @@ This file is the honest record the Kiroween rules ask for: what was built in Kir
 - `graveyard-ui` requirements rewritten as full EARS (R1–R6) with a design doc and an updated task list.
 - Added `.kiro/hooks/lychgate.json` (v1 schema): classifier and SSRF suites on save, `.env` write block (PreToolUse, exit 2), secret scan on Stop, spec-checklist sync on PostTaskExec. The dogfood-links hook is committed but disabled until `lychgate-mcp` exists. `tests/kiro.test.ts` checks that every hook points at real tests, scripts and pnpm scripts.
 
-- First production scan of a real repo (300 links) exposed two false results: GitHub rate-limited 58 links (429, shown as Restless), and a Wayback link was flagged Zombie because the archived page had a for-sale banner. Fixed with a per-host cooldown and bounded retry (R3.5) and an archived-link rule (R5.10), both test-first in `tests/backoff.test.ts`.
+- First production scan of a real repo (300 links) exposed two false results: GitHub rate-limited 58 links (429, shown as Restless), and a Wayback link was flagged Zombie because the archived page had a for-sale banner. Fixed with a per-host cooldown and bounded retry (R3.5) and an archived-link rule (R5.10), both test-first in `tests/backoff.test.ts`. The same live check showed Vercel's resolver answering `EBUSY` for an unregistered domain, so a DNS-over-HTTPS second opinion now confirms NXDOMAIN (R5.11, `tests/doh.test.ts`).
 
 ## Planned Kiro usage (milestone 2 onward)
 - Spec-driven tasks in Kiro IDE for the canvas graveyard, resurrect flow, report/badge, MCP server

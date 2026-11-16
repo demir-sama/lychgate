@@ -4,7 +4,8 @@ import { cosineSimilarity, lengthRatio, parseHtml } from "../classify/html";
 import { detectParked, looksLikeNotFound, redirectedToRoot } from "../classify/signals";
 import { lookupRdap } from "../domain/rdap";
 import { HostLimiter, Semaphore } from "../fetch/limiter";
-import { NXDOMAIN_CODES } from "../fetch/guard";
+import { NXDOMAIN_CODES, TRANSIENT_DNS } from "../fetch/guard";
+import { confirmViaDoh } from "../domain/doh";
 import { probeLink, type LinkProbe, type SafeFetchOptions } from "../fetch/http";
 import { isArchiveUrl } from "../util/url";
 import type { LinkResult, Target } from "./types";
@@ -74,6 +75,14 @@ export async function analyzeTarget(target: Target, ctx: ScanContext): Promise<L
   const url = new URL(target.url);
   const citeDate = target.citeDate ? new Date(target.citeDate) : null;
   const probe = await probeWithBackoff(target.url, ctx);
+  // The platform resolver can answer EBUSY/EAI_AGAIN for names that don't exist. Ask DNS-over-HTTPS
+  // for a second opinion, and only accept it to *confirm* NXDOMAIN (never to choose an IP).
+  if (probe.error?.kind === "dns" && TRANSIENT_DNS.has(probe.error.code ?? "") && !ctx.signal?.aborted) {
+    const second = await ctx.rdap.run(() => confirmViaDoh(url.hostname, ctx.deps));
+    if (second === "nxdomain") {
+      probe.error = { kind: "dns", code: "ENOTFOUND", message: `Domain does not resolve (confirmed over DNS-over-HTTPS after ${probe.error.code})` };
+    }
+  }
   const archived = isArchiveUrl(target.url);
   const ev: Evidence = {
     archived,
