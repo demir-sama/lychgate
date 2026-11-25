@@ -281,6 +281,28 @@ describe("suggestReplacement: sitemap (R4.4, R4.5, R4.6)", () => {
     expect(sitemapFetches).toEqual(["https://a.example/sitemap.xml", "https://a.example/sitemap-blog.xml"]);
   });
 
+  it("keeps index order on equal child scores: the primary (en) sitemap, not the alphabetically first (bn)", async () => {
+    const calls: Call[] = [];
+    const k = "https://kubernetes.io";
+    const index = `<sitemapindex><sitemap><loc>${k}/en/sitemap.xml</loc></sitemap><sitemap><loc>${k}/bn/sitemap.xml</loc></sitemap></sitemapindex>`;
+    const deps = {
+      resolver,
+      transport: mockTransport(
+        {
+          [`${k}/sitemap.xml`]: xml(index),
+          [`${k}/en/sitemap.xml`]: xml(urlset([`${k}/docs/concepts/overview/`])),
+          [`${k}/bn/sitemap.xml`]: xml(urlset([`${k}/bn/docs/concepts/overview/`])),
+        },
+        calls,
+      ),
+    };
+    const r = await suggestReplacement(`${k}/docs/user-guide/kubectl-overview/`, { deps, verify: living });
+    expect(r?.url).toBe(`${k}/docs/concepts/overview/`);
+    expect(r?.url).not.toContain("/bn/");
+    const fetched = calls.filter((c) => /\.xml$/.test(c.url)).map((c) => c.url);
+    expect(fetched).toEqual([`${k}/sitemap.xml`, `${k}/en/sitemap.xml`]);
+  });
+
   it("does not follow an index into a child on another host", async () => {
     const calls: Call[] = [];
     const deps = { resolver, transport: mockTransport({ "https://a.example/sitemap.xml": xml(`<sitemapindex><sitemap><loc>https://evil.test/s.xml</loc></sitemap></sitemapindex>`) }, calls) };

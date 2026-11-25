@@ -226,7 +226,8 @@ async function sitemapUrls(target: string, ctx: ScanContext): Promise<string[]> 
       return u.hostname.toLowerCase() === host && !/\.gz$/i.test(u.pathname);
     })
     .map((url) => ({ url, score: jaccard(slugTokens(url), slugTokens(target)) }))
-    .sort(byScoreThenUrl((x) => x.score));
+    // Array.sort is stable: equal scores keep the index's document order (sites list their primary sitemap first).
+    .sort((a, b) => b.score - a.score);
   if (!children.length) return [];
   const child = await fetchSitemapDoc(children[0].url, ctx);
   return child && child.kind === "urlset" ? child.locs : [];
