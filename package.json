@@ -12,10 +12,12 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "secret-scan": "node scripts/secret-scan.mjs"
+    "secret-scan": "node scripts/secret-scan.mjs",
+    "mcp:build": "node scripts/mcp-build.mjs"
   },
   "packageManager": "pnpm@10.34.6",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@neondatabase/serverless": "^1.2.1",
     "diff": "^9.0.0",
     "htmlparser2": "^12.0.0",
@@ -35,6 +37,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitest/coverage-v8": "^5.1.0",
+    "esbuild": "^0.28.2",
     "fast-check": "^4.10.2",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
