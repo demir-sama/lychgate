@@ -1,0 +1,28 @@
+[tool] Reading tasks.md:1, requirements.md:1, design.md:1
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && cat packages/lychgate-mcp/src/tools.ts packages/lychgate-mcp/src/server.ts tests/mcp-tools.test.ts; ls lib/*; grep -rn "similar\|drift" lib --...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && cat lib/scan/analyze.ts; grep -n -i "drift\|similar" lib/classify/*.ts lib/scan/types.ts | head -40
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && cat tests/helpers.ts | head -60
+[tool] status: Completed
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && grep -n "export" lib/archive/wayback.ts lib/fetch/http.ts; grep -n "fetchSnapshotHtml" -A25 lib/archive/wayback.ts | head -50; grep -n "drift:...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && grep -n "THRESHOLDS =" lib/classify/classify.ts; grep -n "waybackUrl" lib/archive/wayback.ts | head -3 cat >> tests/mcp-tools.test.ts <<'EOF' ...
+[tool] status: Completed
+Failing as expected. Implement.
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && python3 - <<'EOF' p='packages/lychgate-mcp/src/tools.ts' s=open(p).read() s=s.replace('import { findSnapshot, type ArchiveDeps }','import { fi...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && sed -i 's/^- \[ \] 3\. `check_drift`/- [x] 3. `check_drift`/' .kiro/specs/mcp-server/tasks.md && python3 - <<'EOF' p='KIRO_USAGE.md' s=open(p)...
+[tool] status: Completed
+Task 3 is done: the `check_drift` tool is in and ticked in `tasks.md`. `pnpm test` passes (296 tests, 22 files) and `pnpm typecheck` is clean.
+
+- **Input:** `url` and a required `citeDate` (YYYY-MM-DD). Bad input returns a readable error result instead of throwing.
+- **Method:** it fetches the live page through the guarded `probeLink`. It then finds the Wayback snapshot at the cite date and fetches that copy. It compares the two with `cosineSimilarity`, the same measure the scanner uses.
+- **Result:** the text block comes first, then JSON with `similarity`, `drifted`, `threshold`, `snapshot` and `comparable`. `drifted` is true when similarity is below `THRESHOLDS.drift` (0.35).
+- **Cannot compare:** when there's no snapshot, the snapshot has too little text, or the live page is unreadable, it returns `comparable: false` with the reason.
+- **SSRF:** a private target such as `169.254.169.254` is refused with no fetch made.
+
+The code is in `packages/lychgate-mcp/src/tools.ts` and `server.ts`. I wrote the six new tests in `tests/mcp-tools.test.ts` first and watched them fail before implementing.
+
+I added the dated line to `KIRO_USAGE.md`. Your context already showed a task 3 line there, but the file on disk had none, so I added only one. I didn't touch `.kiro/agents` and didn't commit.
