@@ -26,7 +26,7 @@ Working today:
 - Classifier for all seven states, Wayback CDX/Availability lookup, RDAP takeover checks
 - Streaming haunted UI: an original SVG lychgate whose doors open while it scans, fog that thickens as health drops, a plot where each link rises from the ground, worst-first graves with evidence, j/k keyboard walking, and a Daylight mode (high contrast, no motion)
 - Resurrect switches, patched Markdown / unified diff / PR description / report
-- **The séance:** hold a dead link and its last good copy side by side (a sandboxed, no-permission Wayback frame next to today's status, landing URL and drift) and see the exact lines the patch will change before you resurrect it (`s` on a focused grave)
+- **The séance:** hold a dead link and its last good copy side by side (a script-free sandboxed Wayback frame next to today's status, landing URL and drift) and see the exact lines the patch will change before you resurrect it (`s` on a focused grave)
 - **Share the graveyard:** a public read-only report page and a README health badge, stored in Neon Postgres for 30 days, then deleted
 - Original synthesized sound (Web Audio, off by default): a lantern chime for the living, a distant bell for each tombstone, a falling wail for ghosts
 - "Try the lost web": a preset of world-famous dead links (GeoCities, Google+, Vine, Google Reader…) cited in 2012
