@@ -10,7 +10,10 @@ import { HealthGauge } from "./graveyard/HealthGauge";
 import { SpiritIcon } from "./graveyard/icons";
 import { Plot } from "./graveyard/Plot";
 import { Seance } from "./graveyard/Seance";
-import { ORDER, SPIRITS } from "./graveyard/spirits";
+import { useLookups } from "./graveyard/useLookups";
+import { ORDER, RESURRECTABLE, SPIRITS } from "./graveyard/spirits";
+
+const openable = (r?: LinkResult) => !!r && (!!r.snapshot || RESURRECTABLE.has(r.cls));
 
 /** Read-only graveyard for a shared report: same spirits, same séance, no patching. */
 export default function ReportView({ report }: { report: StoredReport }) {
@@ -19,6 +22,7 @@ export default function ReportView({ report }: { report: StoredReport }) {
   const [open, setOpen] = useState<string | null>(null);
   const [seance, setSeance] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const { lookups, lookup } = useLookups();
 
   useEffect(() => {
     const saved = localStorage.getItem("lychgate:daylight");
@@ -78,7 +82,7 @@ export default function ReportView({ report }: { report: StoredReport }) {
               </div>
             </div>
           </div>
-          <Plot results={results} total={results.length} onPick={(u) => setSeance(results.find((r) => r.url === u)?.snapshot ? u : null)} />
+          <Plot results={results} total={results.length} onPick={(u) => setSeance(openable(results.find((r) => r.url === u)) ? u : null)} />
           <div className="chips" role="group" aria-label="Filter graves">
             <button type="button" className="chip" aria-pressed={filter === "all"} onClick={() => setFilter("all")}>
               All <span className="n">{results.length}</span>
@@ -99,12 +103,12 @@ export default function ReportView({ report }: { report: StoredReport }) {
                 onChoose={() => {}}
                 open={open === r.url}
                 onToggle={(v) => setOpen((o) => (v ? r.url : o === r.url ? null : o))}
-                onSeance={r.snapshot ? () => setSeance(r.url) : undefined}
+                onSeance={openable(r) ? () => setSeance(r.url) : undefined}
               />
             ))}
           </ol>
         </section>
-        <Seance r={seance ? (results.find((x) => x.url === seance) ?? null) : null} docs={[]} canPatch={false} chosen={false} onChoose={() => {}} onClose={() => setSeance(null)} />
+        <Seance r={seance ? (results.find((x) => x.url === seance) ?? null) : null} docs={[]} canPatch={false} choice="keep" lookup={(seance && lookups[seance]) || { state: "idle" }} onLookup={lookup} onChoice={() => {}} onClose={() => setSeance(null)} />
       </main>
     </>
   );

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LinkClass } from "@/lib/classify/classify";
+import { choiceSummary, defaultChoice, reasonText, replacementMap, type Choice, type Found } from "@/lib/patch/choice";
 import { patchMarkdown, unifiedDiff } from "@/lib/patch/patch";
 import type { Doc, LinkResult, ScanEvent, ScanSummary } from "@/lib/scan/types";
 import { GateScene } from "./graveyard/GateScene";
@@ -11,9 +12,10 @@ import { HealthGauge } from "./graveyard/HealthGauge";
 import { SpiritIcon } from "./graveyard/icons";
 import { Plot } from "./graveyard/Plot";
 import { Seance } from "./graveyard/Seance";
+import { useLookups } from "./graveyard/useLookups";
 import { play } from "@/lib/sound/sound";
 import { toShared } from "@/lib/report/report";
-import { DEFAULT_RESURRECT, ORDER, RESURRECTABLE, SPIRITS, fmtTs } from "./graveyard/spirits";
+import { ORDER, RESURRECTABLE, SPIRITS, fmtTs } from "./graveyard/spirits";
 
 type Mode = "github" | "site" | "markdown";
 const MODES: Array<[Mode, string]> = [
@@ -81,7 +83,8 @@ export default function Scanner() {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [summary, setSummary] = useState<ScanSummary | null>(null);
   const [filter, setFilter] = useState<LinkClass | "all">("all");
-  const [chosen, setChosen] = useState<Record<string, boolean>>({});
+  const [choices, setChoices] = useState<Record<string, Choice>>({});
+  const { lookups, lookup, reset: resetLookups } = useLookups();
   const [openGrave, setOpenGrave] = useState<string | null>(null);
   const [daylight, setDaylight] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -135,11 +138,14 @@ export default function Scanner() {
     [results, filter],
   );
 
-  const replacements = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const r of results) if (r.snapshot && RESURRECTABLE.has(r.cls) && chosen[r.url]) m.set(r.url, r.snapshot.url);
-    return m;
-  }, [results, chosen]);
+  // What each link's lookup found, in the shape the pure patch logic takes (lib/patch/choice.ts).
+  const found = useMemo(() => {
+    const f: Record<string, Found | null> = {};
+    for (const [url, l] of Object.entries(lookups)) f[url] = l.state === "done" ? l.replacement : null;
+    return f;
+  }, [lookups]);
+
+  const replacements = useMemo(() => replacementMap(results, choices, found), [results, choices, found]);
 
   const patched = useMemo(() => docs.map((d) => ({ doc: d, ...patchMarkdown(d.content, replacements) })), [docs, replacements]);
   const changedCount = patched.reduce((n, p) => n + p.changed.length, 0);
@@ -156,7 +162,8 @@ export default function Scanner() {
     setDocs([]);
     setTotal(0);
     setSummary(null);
-    setChosen({});
+    setChoices({});
+    resetLookups();
     setFilter("all");
     setOpenGrave(null);
     setSeance(null);
@@ -184,9 +191,9 @@ export default function Scanner() {
         // One voice per frame: the worst spirit in the batch speaks.
         const worst = b.map((r) => r.cls).sort((x, y) => ORDER.indexOf(x) - ORDER.indexOf(y))[0];
         if (worst) cue(worst);
-        setChosen((c) => {
+        setChoices((c) => {
           const n = { ...c };
-          for (const r of b) if (r.snapshot && DEFAULT_RESURRECT.has(r.cls)) n[r.url] = true;
+          for (const r of b) n[r.url] = defaultChoice(r);
           return n;
         });
       };
@@ -249,18 +256,22 @@ export default function Scanner() {
   }
 
   function prDescription() {
-    const fixed = results.filter((r) => replacements.has(r.url));
+    const { snapshot, replacement } = choiceSummary(results, choices, found);
+    const pointed = [snapshot.length ? `${snapshot.length} at the Wayback Machine snapshot closest to when each link was cited` : "", replacement.length ? `${replacement.length} at a living replacement` : ""].filter(Boolean);
     const lines = [
       "## Resurrect dead links",
       "",
-      `Lychgate found ${counts.tombstone + counts.ghost + counts.zombie} dead or unsafe links in ${source} (health ${health}/100). This PR points ${fixed.length} of them at the Wayback Machine snapshot closest to when each link was cited.`,
-      "",
-      "| Link | Diagnosis | Snapshot |",
-      "|---|---|---|",
-      ...fixed.map((r) => `| ${r.url} | ${SPIRITS[r.cls].label}: ${r.reasons[0].replace(/\|/g, "\\|")} | [${fmtTs(r.snapshot!.timestamp)}](${r.snapshot!.url}) |`),
-      "",
-      "_Checked with [Lychgate](https://github.com/demir-sama/lychgate)._",
+      `Lychgate found ${counts.tombstone + counts.ghost + counts.zombie} dead or unsafe links in ${source} (health ${health}/100). This PR points ${pointed.join(" and ") || "none of them anywhere new"}.`,
     ];
+    if (snapshot.length) {
+      lines.push("", "### Wayback snapshots", "", "| Link | Diagnosis | Snapshot |", "|---|---|---|");
+      for (const r of snapshot) lines.push(`| ${r.url} | ${SPIRITS[r.cls].label}: ${r.reasons[0].replace(/\|/g, "\\|")} | [${fmtTs(r.snapshot!.timestamp)}](${r.snapshot!.url}) |`);
+    }
+    if (replacement.length) {
+      lines.push("", "### Living replacements", "", "| Link | Diagnosis | Replacement | Found by | Sure |", "|---|---|---|---|---|");
+      for (const { r, found: f } of replacement) lines.push(`| ${r.url} | ${SPIRITS[r.cls].label}: ${r.reasons[0].replace(/\|/g, "\\|")} | ${f.url} | ${reasonText(f.reason)} | ${Math.round(f.confidence * 100)}% |`);
+    }
+    lines.push("", "_Checked with [Lychgate](https://github.com/demir-sama/lychgate)._");
     return lines.join("\n") + "\n";
   }
 
@@ -275,9 +286,9 @@ export default function Scanner() {
   }
 
   const choose = useCallback(
-    (url: string, v: boolean) => {
-      setChosen((c) => ({ ...c, [url]: v }));
-      if (v) cue("resurrect", true);
+    (url: string, c: Choice) => {
+      setChoices((m) => ({ ...m, [url]: c }));
+      if (c !== "keep") cue("resurrect", true);
     },
     [cue],
   );
@@ -351,7 +362,7 @@ export default function Scanner() {
         if (url) setOpenGrave((o) => (o === url ? null : url));
       } else if (e.key === "s" && t.classList.contains("grave")) {
         const r = sorted.find((x) => graveId(x.url) === t.id);
-        if (r?.snapshot) {
+        if (r && (r.snapshot || RESURRECTABLE.has(r.cls))) {
           e.preventDefault();
           setSeance(r.url);
         }
@@ -627,9 +638,9 @@ export default function Scanner() {
                   key={r.url}
                   r={r}
                   canPatch={docs.length > 0}
-                  chosen={!!chosen[r.url]}
-                  onChoose={(v) => choose(r.url, v)}
-                  onSeance={r.snapshot ? () => setSeance(r.url) : undefined}
+                  chosen={(choices[r.url] ?? "keep") !== "keep"}
+                  onChoose={(v) => choose(r.url, v ? "snapshot" : "keep")}
+                  onSeance={r.snapshot || RESURRECTABLE.has(r.cls) ? () => setSeance(r.url) : undefined}
                   open={openGrave === r.url}
                   onToggle={(v) => setOpenGrave((o) => (v ? r.url : o === r.url ? null : o))}
                 />
@@ -642,8 +653,10 @@ export default function Scanner() {
           r={seance ? (results.find((x) => x.url === seance) ?? null) : null}
           docs={docs}
           canPatch={docs.length > 0}
-          chosen={!!(seance && chosen[seance])}
-          onChoose={choose}
+          choice={(seance && choices[seance]) || "keep"}
+          lookup={(seance && lookups[seance]) || { state: "idle" }}
+          onLookup={lookup}
+          onChoice={choose}
           onClose={() => {
             const u = seance;
             setSeance(null);

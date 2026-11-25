@@ -79,22 +79,27 @@ export function GraveCard({ r, canPatch, chosen, onChoose, open, onToggle, onSea
           </ul>
         </details>
 
-        {r.snapshot && (
+        {(r.snapshot || onSeance) && (
           <div className="snap">
-            <span className="snap-label">
-              {r.snapshot.beforeCite ? "Closest copy before it was cited" : "Latest surviving copy"}: <strong>{fmtTs(r.snapshot.timestamp)}</strong>
-            </span>
+            {r.snapshot && (
+              <span className="snap-label">
+                {r.snapshot.beforeCite ? "Closest copy before it was cited" : "Latest surviving copy"}: <strong>{fmtTs(r.snapshot.timestamp)}</strong>
+              </span>
+            )}
             {onSeance ? (
               <button type="button" className="btn btn-quiet btn-seance" onClick={onSeance}>
                 <span className="candle-sm" aria-hidden="true" />
-                Hold a séance<span className="sr-only">: compare the archived copy with today</span>
+                Hold a séance
+                <span className="sr-only">{r.snapshot ? ": compare the archived copy with today, or look for a living replacement" : ": look for a living replacement"}</span>
               </button>
             ) : (
-              <a className="btn btn-quiet" href={r.snapshot.url} target="_blank" rel="noopener noreferrer">
-                Preview<span className="sr-only"> snapshot (opens the Wayback Machine)</span> ↗
-              </a>
+              r.snapshot && (
+                <a className="btn btn-quiet" href={r.snapshot.url} target="_blank" rel="noopener noreferrer">
+                  Preview<span className="sr-only"> snapshot (opens the Wayback Machine)</span> ↗
+                </a>
+              )
             )}
-            {canPatch && RESURRECTABLE.has(r.cls) && (
+            {canPatch && r.snapshot && RESURRECTABLE.has(r.cls) && (
               <label className="switch">
                 <input type="checkbox" checked={chosen} onChange={(e) => onChoose(e.target.checked)} />
                 <span className="switch-track" aria-hidden="true" />
