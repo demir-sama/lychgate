@@ -17,8 +17,10 @@ type Props = {
 
 /**
  * The séance: hold the dead link and its last good copy side by side before deciding.
- * Native <dialog> gives focus trapping and Esc for free; the iframe is sandboxed with
- * no permissions at all (no scripts, no same-origin, no forms, no top navigation).
+ * Native <dialog> gives focus trapping and Esc for free. The iframe is sandboxed: no scripts,
+ * no forms, no popups, no top navigation. Only allow-same-origin is granted, so archived
+ * stylesheets that carry SRI/crossorigin attributes still load; without scripts the frame
+ * cannot act on that origin.
  */
 export function Seance({ r, docs, canPatch, chosen, onChoose, onClose }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -92,7 +94,7 @@ export function Seance({ r, docs, canPatch, chosen, onChoose, onClose }: Props) 
               <iframe
                 src={framedSnapshotUrl(snap.url)}
                 title={`Wayback Machine copy of ${r.url} from ${fmtTs(snap.timestamp)}`}
-                sandbox=""
+                sandbox="allow-same-origin"
                 referrerPolicy="no-referrer"
                 loading="lazy"
                 onLoad={() => setLoaded(true)}

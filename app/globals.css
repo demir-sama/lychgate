@@ -1852,6 +1852,13 @@ summary:hover {
   .seance-patch {
     margin: 14px 14px 0;
   }
+  .epitaph dl div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .epitaph {
+    padding: 22px 16px 16px;
+  }
   .seance-foot {
     padding: 14px;
   }

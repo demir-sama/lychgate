@@ -45,7 +45,7 @@ Design rules live in `.kiro/steering/haunted-design.md`.
 
 ## R7 The séance (resurrect preview)
 - R7.1 WHERE a grave has a snapshot, the system shall offer "Hold a séance" (and the `s` key on a focused grave) to open a modal comparing Then (the Wayback capture, framed) with Now (status, landing URL, title today, drift, RDAP date, confidence).
-- R7.2 The framed capture shall load in Wayback's toolbar-less `if_` mode inside an `<iframe sandbox="">` with no permissions; CSP shall allow frames from `https://web.archive.org` only.
+- R7.2 The framed capture shall load in Wayback's toolbar-less `if_` mode inside a sandboxed iframe with no scripts, forms, popups or top navigation (`sandbox="allow-same-origin"` only, so archived stylesheets with SRI still load); CSP shall allow frames from `https://web.archive.org` only.
 - R7.3 WHERE the input has documents, the séance shall show the exact lines the patch changes (before struck through, after highlighted).
 - R7.4 The séance shall let the user Resurrect or Leave the link; the choice shall sync with the grave's switch, and focus shall return to the grave on close.
 - R7.5 The séance shall be a native modal dialog (focus trapped, Esc closes, backdrop click closes) and its motion (fog curtains parting, panes sliding in, a lantern rising on Resurrect) shall be off under reduced motion and Daylight.

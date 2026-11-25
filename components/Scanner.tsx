@@ -33,12 +33,12 @@ const SAMPLE_MD = `# Reading list
 
 const LOST_WEB_MD = `# The lost web: links the whole world once shared
 
-- [GeoCities](http://www.geocities.com/)
+- [A GeoCities home page](http://www.geocities.com/SiliconValley/Lakes/)
 - [Google Reader](https://www.google.com/reader/)
 - [Vine](https://vine.co/)
 - [Google+](https://plus.google.com/)
-- [del.icio.us bookmarks](http://del.icio.us/)
-- [Yahoo! Answers](https://answers.yahoo.com/)
+- [del.icio.us popular bookmarks](http://del.icio.us/popular/)
+- [A Yahoo! Answers thread](https://answers.yahoo.com/question/index?qid=20120601000000AAexample)
 - [Internet Explorer 6 downloads](http://www.microsoft.com/windows/ie/ie6/)
 - [The original Space Jam site](https://www.spacejam.com/1996/)
 - [Wikipedia](https://www.wikipedia.org/)
