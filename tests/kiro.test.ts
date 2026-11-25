@@ -57,3 +57,25 @@ describe("block-env-writes hook", () => {
     expect(run({ toolName: "write", toolArgs: { file_path: "README.md" } }).status).toBe(0);
   });
 });
+
+describe("Kiro custom agent and .kiro hygiene", () => {
+  const agent = readFileSync(path.join(root, ".kiro/agents/gravedigger.md"), "utf8");
+  it("loads only resources that exist", () => {
+    for (const m of agent.matchAll(/file:\/\/([^\s]+)/g)) expect(existsSync(path.join(root, m[1])), m[1]).toBe(true);
+  });
+  it("denies pushes, curl and .env writes", () => {
+    expect(agent).toMatch(/"git push\*"/);
+    expect(agent).toMatch(/"curl\*"/);
+    expect(agent).toMatch(/fs_write[\s\S]*"\.env\*"[\s\S]*deny/);
+  });
+  it("never gitignores .kiro or anything inside it (Kiroween rule)", () => {
+    const gi = readFileSync(path.join(root, ".gitignore"), "utf8").split("\n").map((l) => l.trim());
+    expect(gi.filter((l) => /(^|\/)\.kiro(\/|$)/.test(l))).toEqual([]);
+  });
+  it("every spec has requirements and a task list", () => {
+    for (const spec of ["scanner-classifier", "resurrection-engine", "graveyard-ui", "mcp-server"]) {
+      expect(existsSync(path.join(root, `.kiro/specs/${spec}/requirements.md`)), spec).toBe(true);
+      expect(existsSync(path.join(root, `.kiro/specs/${spec}/tasks.md`)), spec).toBe(true);
+    }
+  });
+});
