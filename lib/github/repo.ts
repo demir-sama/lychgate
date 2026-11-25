@@ -87,6 +87,16 @@ export class GitHubClient {
     return JSON.parse(res.body ?? "null") as T;
   }
 
+  /**
+   * Canonical `full_name` of a repository. GitHub answers a renamed repo with a 301 to
+   * `/repositories/{id}`, which the guarded fetch follows, so this is how a rename shows up.
+   */
+  async repo(owner: string, repo: string): Promise<{ fullName: string }> {
+    const info = await this.api<{ full_name?: unknown }>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`);
+    if (typeof info?.full_name !== "string" || !info.full_name.includes("/")) throw new Error(`GitHub API gave no full_name for ${owner}/${repo}`);
+    return { fullName: info.full_name };
+  }
+
   async listMarkdown(r: RepoRef): Promise<{ ref: string; paths: string[]; truncated: boolean }> {
     const ref = r.ref ?? "HEAD";
     const tree = await this.api<{ tree: Array<{ path: string; type: string }>; truncated: boolean }>(

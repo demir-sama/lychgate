@@ -1,0 +1,71 @@
+I'll start by reading the spec files and the existing code this task touches.
+[tool] Reading listing lychgate, tasks.md:1, requirements.md:1
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && cat docs/kiro-runs/*resurrection-engine-4.log; ls .kiro/specs/*; cat .kiro/agents/gravedigger.json | head -50; cat package.json; cat lib/githu...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && cat packages/lychgate-mcp/src/tools.ts; ls packages/lychgate-mcp/src; sed -n 1,400p lib/fetch/http.ts
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && cat lib/scan/analyze.ts lib/scan/types.ts lib/util/url.ts lib/util/ratelimit.ts tests/helpers.ts; sed -n 1,80p tests/mcp-tools.test.ts; cat .k...
+[tool] status: Completed
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && cat lib/classify/signals.ts | sed -n 1,140p; cat lib/classify/html.ts; sed -n 1,60p tests/github.test.ts; grep -n "NEEDS_RESURRECTION\|export"...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && cat tests/route.test.ts; grep -n "export" lib/archive/wayback.ts; grep -rn "four tools\|scan_links" --include=*.md --include=*.ts --include=*....
+[tool] status: Completed
+Spec first: the R4 requirements, then the design doc.
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate/.kiro/specs/resurrection-engine && cat >> requirements.md <<'EOF' ## R4 Suggested live replacement (task 4) Scope: for a link that is dead, drift...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && node -e ' const t=require("tldts");for(const h of ["a.example","www.a.example","10.0.0.1","localhost","foo.github.io","x.co.uk","intranet.exam...
+[tool] status: Completed
+Now the tests, before any implementation.
+[tool] Creating replacement.test.ts
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && python3 - <<'EOF' p='tests/mcp-tools.test.ts' s=open(p).read() s=s.replace('import { classifyUrlTool, findSnapshotTool, checkDriftTool, scanLi...
+[tool] status: Completed
+Red as expected. I'll tidy one test I wrote clumsily, then implement.
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && python3 - <<'EOF' p='tests/replacement-route.test.ts' s=open(p).read() a=s.index(' suggest.mockImplementation(async (_u: string, o') b=s.index...
+[tool] status: Completed
+Now the implementation: `GitHubClient.repo()`, the engine, the same-origin helper, the route, and the MCP tool.
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && python3 - <<'EOF' p='lib/github/repo.ts' s=open(p).read() anchor=' async listMarkdown(' add=''' /** * Canonical `full_name` of a repository. G...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && sed -i 's|canAfford(n?: number): boolean; repo|canAfford(n?: number): boolean \| number; repo|' lib/patch/replacement.ts && sed -i 's|suggest....
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && sed -n 80,95p tests/replacement-route.test.ts; grep -n "catch" app/api/replacement/route.ts
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && cat > /tmp/dbg.test.ts <<'EOF' import { it, vi } from "vitest"; const suggest = vi.fn(); vi.mock("@/lib/patch/replacement", async (orig) => ({...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && sed -i 's|console.log("status", res.status, await res.text());|throw new Error("STATUS " + res.status + " " + await res.text());|; s|console.l...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && pnpm vitest run tests/replacement-route.test.ts -t "unexpected failure" 2>&1 | head -30; pnpm vitest run tests/replacement-route.test.ts --rep...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && sed -i 's|^afterEach(() => vi.restoreAllMocks());|// afterEach(() => vi.restoreAllMocks());|' tests/replacement-route.test.ts && pnpm vitest r...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && sed -i 's|^// afterEach(() => vi.restoreAllMocks());|afterEach(() => vi.restoreAllMocks());|' tests/replacement-route.test.ts && cat > tests/z...
+[tool] status: Completed
+The extra "boom" is vitest's spy tracking the rejected promise as an unhandled rejection, so the route is fine. A synchronous throw in the mock avoids that and still exercises the route's `catch`.
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && python3 - <<'EOF' p='tests/replacement-route.test.ts' s=open(p).read() s=s.replace(''' suggest.mockImplementation(async () => { throw new Erro...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && python3 - <<'EOF' p='tests/replacement-route.test.ts' s=open(p).read() s=s.replace('''const suggest = vi.fn(); vi.mock("@/lib/patch/replacemen...
+[tool] status: Completed
+All green. Now I'll tick the task and add the usage line.
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && python3 - <<'EOF' p='.kiro/specs/resurrection-engine/tasks.md' s=open(p).read() s=s.replace('- [ ] 4. Suggested live replacement (same-site se...
+[tool] status: Completed
+Task 4 is done: `pnpm test` (27 files, 366 tests) and `pnpm typecheck` both pass, and `pnpm secret-scan` is clean. Nothing is committed, `.kiro/agents` is untouched, and the choice UI is not built.
+
+- **Spec:** I added R4.1–R4.13 to `requirements.md`. The new `design.md` covers the replacement engine and has a short section for the task 7 choice UI. Task 4 is ticked, and the dated line is in `KIRO_USAGE.md`.
+- **Engine:** `lib/patch/replacement.ts` returns `{url, reason, confidence}` or `null`. It tries sources in this order:
+  1. **GitHub rename.** It calls the new `GitHubClient.repo()`, only when `canAfford()` allows. It suggests a replacement only when `full_name` differs, and the rest of the path and the query carry over. `github.com` never uses the sitemap.
+  2. **Redirect.** It takes the final URL of the redirect chain when that URL is on the same registrable domain and is not the site root.
+  3. **Sitemap.** It ranks same-domain URLs by path-slug similarity, then verifies the top three.
+- **Living only:** The scanner's own `analyzeTarget` verifies every candidate, so only a Living URL is returned. A Sealed or unresolvable target gets no request at all.
+- **Tests:** Property tests cover the three properties you listed, plus `mapGithubUrl` and shuffled sitemaps. The rest are unit tests with mocked transports, in `tests/replacement.test.ts` and `tests/replacement-route.test.ts`. `tests/mcp-tools.test.ts` and `tests/mcp.test.ts` (now five tools) cover the MCP tool.
+- **Endpoint and tool:** `POST /api/replacement` checks the body with zod, rejects cross-origin requests and stops after 15 s. It answers `{replacement, timedOut}`. `suggest_replacement` is registered in `server.ts` and returns a text block, then JSON.
+
+Decisions to check:
+- **Sitemap cap:** "One sitemap fetch" and "one level of index" conflicted. I read them as `/sitemap.xml` plus at most one same-host child when it is an index. The child is chosen by slug similarity, and `.gz` children are skipped.
+- **Case-only renames:** A `full_name` that differs from the URL only by case counts as not renamed.
+- **Registrable domain:** Matching uses private suffixes, so `alice.github.io` and `bob.github.io` are different sites.
+- **Rate limit:** `/api/replacement` uses the same 6 per 10 minutes per IP as `/api/scan`. That may be tight once the task 7 UI calls it per grave.
+- **Title ranking:** The dead page has no title, so I take it from its newest Wayback copy. That lookup runs only when two or more candidates are Living.
+- **Wasted fetches:** For a non-Living candidate, `analyzeTarget` also does its Wayback lookup. That costs a few wasted fetches, bounded by the three-candidate cap.
+
+`.kiro/settings/mcp.json` (the `_comment` field) and the `lychgate-mcp` README still describe four tools. I left both alone.
