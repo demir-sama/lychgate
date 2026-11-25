@@ -33,7 +33,7 @@ Working today:
 - **A living replacement:** in the séance, ask for a live replacement (a GitHub repo rename, a same-site redirect or the site's own sitemap, verified Living before it is offered), then choose per link: Wayback snapshot, living replacement, or keep as is. The choice drives the patch, diff and PR description
 - **`lychgate-mcp`:** an MCP server (stdio) with `scan_links`, `classify_url`, `find_snapshot`, `check_drift` and `suggest_replacement`, so Kiro or any MCP client can check docs for dead links. Build with `pnpm mcp:build`; `.kiro/settings/mcp.json` already points at it
 - Kiro hooks: the gravedigger agent scans every Markdown file it writes through `lychgate-mcp` (`postToolUse`), plus the test suites, `.env` write block, secret scan and spec checklist sync in `.kiro/hooks/lychgate.json`
-- **Gravekeeper**, a Kiro Crew app that walks your watched repos weekly with Lychgate: [demir-sama/gravekeeper](https://github.com/demir-sama/gravekeeper/tree/kiro-build)
+- **Gravekeeper**, a Kiro Crew app that walks your watched repos weekly with Lychgate: [demir-sama/gravekeeper](https://github.com/demir-sama/gravekeeper)
 
 ## Run locally
 
