@@ -29,7 +29,7 @@ MCP suggest_replacement ┴─▶ lib/patch/replacement.ts  suggestReplacement(u
 
 ### Sitemap
 - One fetch of `{origin}/sitemap.xml`, 512 KB, parsed with `htmlparser2` in XML mode (entity decoding, no new dependency), at most 5,000 `<loc>` values.
-- `<sitemapindex>`: pick the one child on the same host whose URL best matches the target's slug tokens, fetch it once (same caps), do not go deeper. `.gz` children are skipped.
+- `<sitemapindex>`: pick the one child on the same host whose URL best matches the target's slug tokens (ties keep the index's document order), fetch it once (same caps), do not go deeper. `.gz` children are skipped.
 - Candidates are filtered to http(s), same registrable domain, not the target, not a root.
 - `slugScore = 0.7 * jaccard(last segment tokens) + 0.3 * jaccard(all path tokens)`. Tokens: lower-cased path, extension dropped, split on non-letters/digits, length >= 2.
 - Candidates under 0.4 are dropped. The top three by `(score desc, url asc)` are verified. When two or more are Living, the title of the target's latest Wayback copy is compared with each live title (`jaccard`), and the final score is `0.7 * slug + 0.3 * title`. Winner by `(final desc, url asc)`.

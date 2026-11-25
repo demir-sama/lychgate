@@ -1,0 +1,26 @@
+[tool] Running: grep -n "sitemapUrls" -A60 lib/patch/replacement.ts | head -150; grep -n "SAMPLE_MD" -B2 -A15 components/Scanner.tsx | head -60; grep -rn "SAMPLE_MD\|HTML 4.01" tests | head; grep -rn -i "...
+[tool] status: Completed
+[tool] Running: grep -n "byScoreThenUrl" -B2 -A8 lib/patch/replacement.ts | head -30; grep -n "sitemapindex\|sitemap" tests/replacement.test.ts | head -30; sed -n 1,60p tests/replacement.test.ts
+[tool] status: Completed
+[tool] Running: sed -n 226,284p tests/replacement.test.ts
+[tool] status: Completed
+Add the test first.
+[tool] Editing replacement.test.ts
+[tool] Running: pnpm vitest run tests/replacement.test.ts 2>&1 | tail -25
+[tool] status: Completed
+[tool] status: Completed
+Fails as expected. Now the fix, the preset, and docs.
+[tool] Running: python3 - <<'E' import re p='lib/patch/replacement.ts' s=open(p).read() s=s.replace(" .sort(byScoreThenUrl((x) => x.score));\n if (!children.length) return [];"," // Array.sort is stable: ...
+[tool] status: Completed
+[tool] Editing KIRO_USAGE.md
+[tool] Running: sed -n 42,48p KIRO_USAGE.md | cut -c1-80; pnpm test 2>&1 | tail -12; pnpm typecheck 2>&1 | tail -8
+[tool] status: Completed
+[tool] status: Completed
+Both changes are in. `pnpm test` passes (375 tests in 28 files) and `pnpm typecheck` is clean. I didn't touch `.kiro/agents` and didn't commit.
+
+1. **Sitemap child choice.** In `sitemapUrls()` in `lib/patch/replacement.ts`, children with equal slug scores now keep the index's document order. It still fetches only one child. The new test in `tests/replacement.test.ts` uses a fake kubernetes.io index with `/en/` listed before `/bn/`. It failed first, returning the `/bn/` page. It now fetches the `/en/` child and suggests `https://kubernetes.io/docs/concepts/overview/`, with no `/bn/` prefix. I also updated the R4.5 line in `requirements.md` and the sitemap-index line in `design.md` to say ties keep document order.
+2. **Preset.** `SAMPLE_MD` in `components/Scanner.tsx` has the kubectl overview line after the HTML 4.01 line. No test pinned the preset content, so none needed changing.
+
+I added a dated 25 Nov 2026 line to the Milestone 3 section of `KIRO_USAGE.md`, saying this was built in Kiro CLI by the gravedigger agent.
+
+I did not run the new preset link live against kubernetes.io. The fix is checked only against the fake transport.
