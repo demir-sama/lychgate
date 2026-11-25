@@ -18,7 +18,7 @@ Each grave shows cause of death, evidence, confidence and the Wayback Machine sn
 
 **Live:** https://lychgate-taupe.vercel.app
 
-## Status: milestone 2
+## Status: milestone 3
 
 Working today:
 - Scanner for GitHub repos (README + up to 20 Markdown files, cite dates from git history, no token needed), web pages / sitemaps, and pasted Markdown or URL lists (≤ 300 links)
@@ -30,9 +30,10 @@ Working today:
 - **Share the graveyard:** a public read-only report page and a README health badge, stored in Neon Postgres for 30 days, then deleted
 - Original synthesized sound (Web Audio, off by default): a lantern chime for the living, a distant bell for each tombstone, a falling wail for ghosts
 - "Try the lost web": a preset of world-famous dead links (GeoCities, Google+, Vine, Google Reader…) cited in 2012
-- Kiro hooks in `.kiro/hooks/lychgate.json` (test suites on save, `.env` write block, secret scan on stop, spec checklist sync)
-
-Next: `lychgate-mcp` server (spec ready, built in Kiro CLI), suggested live replacements, Gravekeeper crew app. See `.kiro/specs/*/tasks.md`.
+- **A living replacement:** in the séance, ask for a live replacement (a GitHub repo rename, a same-site redirect or the site's own sitemap, verified Living before it is offered), then choose per link: Wayback snapshot, living replacement, or keep as is. The choice drives the patch, diff and PR description
+- **`lychgate-mcp`:** an MCP server (stdio) with `scan_links`, `classify_url`, `find_snapshot`, `check_drift` and `suggest_replacement`, so Kiro or any MCP client can check docs for dead links. Build with `pnpm mcp:build`; `.kiro/settings/mcp.json` already points at it
+- Kiro hooks: the gravedigger agent scans every Markdown file it writes through `lychgate-mcp` (`postToolUse`), plus the test suites, `.env` write block, secret scan and spec checklist sync in `.kiro/hooks/lychgate.json`
+- **Gravekeeper**, a Kiro Crew app that walks your watched repos weekly with Lychgate: [demir-sama/gravekeeper](https://github.com/demir-sama/gravekeeper)
 
 ## Run locally
 
@@ -68,6 +69,8 @@ If your machine uses a fake-IP DNS proxy (every host resolves into 198.18.0.0/15
 
 Response: `application/x-ndjson`, one event per line: `status`, `meta`, `result` (one per link), `done`.
 
+`POST /api/replacement` with `{ "url": "https://…" }` (same-origin) returns `{ replacement: { url, reason, confidence } | null, timedOut }`.
+
 `POST /api/report` with `{ source, results }` saves a finished scan and returns `{ id, path: "/r/<id>", badge: "/api/badge/<id>" }`. The server recomputes the health score itself.
 
 ## Security
@@ -81,7 +84,7 @@ Response: `application/x-ndjson`, one event per line: `status`, `meta`, `result`
 
 - `.kiro/steering/` covers product, tech, structure, security, haunted design and testing
 - `.kiro/specs/` holds EARS requirements, design and task lists for the scanner, resurrection engine, graveyard UI, MCP server and gravekeeper crew
-- `.kiro/agents/gravedigger.md` is a custom agent for Kiro CLI/IDE that builds one spec task at a time, test-first, with the steering loaded as resources and `git push`, `curl` and `.env` writes denied; `scripts/kiro/run-task.sh <spec> <n>` runs a task headless
+- `.kiro/agents/gravedigger.json` is the Kiro CLI custom agent that built milestone 3 one spec task at a time, test-first: steering and spec as resources, the `@lychgate` MCP tools, `postToolUse` and `stop` hooks, and `git push`, `git commit`, `curl` and `.env` access denied; `scripts/kiro/run-task.sh <spec> <n>` runs a task headless and `docs/kiro-runs/` keeps every transcript
 - `.kiro/hooks/lychgate.json` (v1 schema) wires the test suites, a `.env` write block, the secret scan and spec-checklist sync into the agent loop; `tests/kiro.test.ts` keeps the hooks pointing at real files and scripts
 - See [KIRO_USAGE.md](KIRO_USAGE.md) for how each part was built, including what was not built in Kiro
 
