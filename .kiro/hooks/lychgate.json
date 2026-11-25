@@ -48,14 +48,12 @@
     },
     {
       "name": "dogfood-doc-links",
-      "description": "On saving Markdown, scan our own docs for dead links through lychgate-mcp. Enabled once the MCP server ships (milestone 3).",
-      "enabled": false,
+      "description": "On saving Markdown, scan the file through lychgate-mcp (scan_links), print Tombstone, Ghost and Zombie links with their Wayback snapshot, and never edit the file. Quiet when the MCP build is missing.",
+      "enabled": true,
       "trigger": "PostFileSave",
       "matcher": "\\.md$",
-      "action": {
-        "type": "agent",
-        "prompt": "Use the lychgate MCP tool scan_links on {{filePath}}. Report any Tombstone, Ghost or Zombie links with their suggested Wayback snapshot, and offer the patch. Do not edit the file without asking."
-      }
+      "action": { "type": "command", "command": "node scripts/hooks/dogfood-links.mjs" },
+      "timeout": 100
     }
   ]
 }

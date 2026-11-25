@@ -1,0 +1,65 @@
+[tool] Reading requirements.md:1, design.md:1, tasks.md:1, lychgate.json:1, listing scripts, listing tests
+[tool] status: Completed
+[tool] Reading mcp.test.ts:1, block-env-writes.mjs:1, kiro.test.ts:1, mcp.json:1
+[tool] status: Completed
+[tool] Running: grep -n "scan_links" -A70 packages/lychgate-mcp/src/tools.ts | head -170; ls packages/lychgate-mcp/dist
+[tool] status: Completed
+[tool] Running: grep -n -i "scan\|worst\|snapshot" packages/lychgate-mcp/src/tools.ts | head -60
+[tool] status: Completed
+[tool] Running: sed -n 120,215p packages/lychgate-mcp/src/tools.ts; grep -n "LinkResult" -B2 -A25 lib/scan/types.ts | head -80
+[tool] status: Completed
+[tool] Creating dogfood-links.mjs
+[tool] Creating fake-mcp.mjs
+[tool] status: Completed
+[tool] status: Completed
+[tool] Creating dogfood-hook.test.ts
+[tool] status: Completed
+Test first: the hook script exists already, so I'll confirm the red state by running the test against a missing script.
+[tool] Running: mv scripts/hooks/dogfood-links.mjs /tmp/dl.mjs && pnpm vitest run tests/dogfood-hook.test.ts 2>&1 | tail -15; mv /tmp/dl.mjs scripts/hooks/dogfood-links.mjs && pnpm vitest run tests/dogfoo...
+[tool] status: Completed
+[tool] Running: sed -i 's/if (process.env.FAKE_MCP_HANG)/if (path.includes("hang"))/' tests/fixtures/fake-mcp.mjs python3 - <<'E' p='tests/dogfood-hook.test.ts' s=open(p).read() s=s.replace(' writeFileSyn...
+[tool] status: Completed
+[tool] Running: python3 - <<'E' import re p='.kiro/hooks/lychgate.json' s=open(p).read() i=s.index('"name": "dogfood-doc-links"') head,tail=s[:i],s[i:] tail=re.sub(r'"description": "[^"]*"','"description"...
+[tool] status: Completed
+Now the live scans via the @lychgate tool.
+[tool] Running: @lychgate/scan_links
+[tool] Running: @lychgate/scan_links
+[tool] status: Completed
+[tool] status: Completed
+[tool] Running: python3 - <<'E' p='KIRO_USAGE.md' s=open(p).read() marker='\n## Planned Kiro usage' add='''- 25 Nov 2026: `mcp-server` task 7 (R4.1, R4.2): added `scripts/hooks/dogfood-links.mjs` (reads t...
+[tool] status: Completed
+[tool] Running: grep -n "task 7\|first dogfood" KIRO_USAGE.md | cut -c1-90; git diff --stat
+[tool] status: Completed
+Task 7 is done and ticked in `tasks.md`. `pnpm test` (25 files, 314 tests) and `pnpm typecheck` pass. I didn't commit.
+
+**What I built**
+- **Hook script:** `scripts/hooks/dogfood-links.mjs` follows your spec: it never edits the file, exits 0 and stays silent when the dist is missing or the file isn't `.md`, and times out quietly (90 s by default).
+- **Test seams:** it has two env overrides, `LYCHGATE_MCP_ENTRY` and `LYCHGATE_HOOK_TIMEOUT_MS`, which the tests use.
+- **Hook config:** `dogfood-doc-links` in `.kiro/hooks/lychgate.json` is now enabled as a command hook (`node scripts/hooks/dogfood-links.mjs`, timeout 100). I added a check for it to `tests/kiro.test.ts`.
+- **Hook tests:** `tests/dogfood-hook.test.ts` covers output, no edits, silent exits, the missing dist, the timeout and a Sealed-only run against the real server.
+- **Test fixture:** a fake MCP server in `tests/fixtures/fake-mcp.mjs` returns canned results so the output test needs no network.
+- **R4.1:** I left `mcp.json` as it was.
+- **Other changes:** I added two dated lines to `KIRO_USAGE.md`, and a note on `tasks.md` that task 7 was built in Kiro CLI by the gravedigger agent.
+
+**Dogfood scan results**
+- **README.md:** 4 links found, all 4 Sealed. The other six classes are 0.
+- **KIRO_USAGE.md:** 0 links found.
+- **What the README result means:** it isn't a verdict on those links. This machine's DNS proxy resolves every host to 198.18.0.1, which the SSRF guard correctly refuses, so no link was fetched. No dead links were found, but none were ruled out either. The "health 100/100" in that scan is misleading for the same reason.
+- **Re-run needed:** the scan needs repeating on a machine with ordinary DNS, or with `LYCHGATE_DEV_ALLOW_FAKE_IP=1` set in the server's `env`. I didn't change that setting because it's a config decision.
+
+**Unexpected diffs**
+`git status` also shows changes to `.kiro/agents/gravedigger.json` and `.kiro/settings/mcp.json`. I didn't make them, so check them before you commit.
+
+**Hook JSON for `.kiro/agents/gravedigger.json`** (I didn't edit it):
+```json
+"hooks": {
+  "postToolUse": [
+    {
+      "matcher": "fs_write",
+      "command": "node scripts/hooks/dogfood-links.mjs",
+      "timeout_ms": 100000
+    }
+  ]
+}
+```
+This is the Kiro CLI agent-config hook shape. Check it against the `hooks` block already in that file. The script reads the written path from `tool_input.path` or `tool_input.file_path`.
