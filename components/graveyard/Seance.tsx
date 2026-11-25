@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Doc, LinkResult } from "@/lib/scan/types";
+import { reasonText, targetFor, type Choice, type Lookup } from "@/lib/patch/choice";
 import { framedSnapshotUrl, patchPreview } from "@/lib/patch/preview";
 import { SpiritIcon } from "./icons";
 import { RESURRECTABLE, SPIRITS, fmtDate, fmtTs } from "./spirits";
@@ -10,8 +11,10 @@ type Props = {
   r: LinkResult | null;
   docs: Doc[];
   canPatch: boolean;
-  chosen: boolean;
-  onChoose: (url: string, v: boolean) => void;
+  choice: Choice;
+  lookup: Lookup;
+  onLookup: (url: string) => void;
+  onChoice: (url: string, c: Choice) => void;
   onClose: () => void;
 };
 
@@ -22,7 +25,7 @@ type Props = {
  * stylesheets that carry SRI/crossorigin attributes still load; without scripts the frame
  * cannot act on that origin.
  */
-export function Seance({ r, docs, canPatch, chosen, onChoose, onClose }: Props) {
+export function Seance({ r, docs, canPatch, choice, lookup, onLookup, onChoice, onClose }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const [loaded, setLoaded] = useState(false);
   const [rising, setRising] = useState(false);
@@ -41,16 +44,36 @@ export function Seance({ r, docs, canPatch, chosen, onChoose, onClose }: Props) 
 
   const s = SPIRITS[r.cls];
   const snap = r.snapshot;
-  const lines = snap && docs.length ? patchPreview(docs, r, snap.url) : [];
-  const canRaise = canPatch && !!snap && RESURRECTABLE.has(r.cls);
+  const found = lookup.state === "done" ? lookup.replacement : null;
+  const target = targetFor(r, choice, found);
+  const lines = target && docs.length ? patchPreview(docs, r, target) : [];
+  const resurrectable = RESURRECTABLE.has(r.cls);
+  const busy = lookup.state === "loading";
 
-  function decide(v: boolean) {
-    onChoose(r!.url, v);
-    if (v) {
+  function pick(c: Choice) {
+    if (c === choice) return;
+    onChoice(r!.url, c);
+    if (c !== "keep" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setRising(true);
-      setTimeout(() => ref.current?.close(), window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 900);
-    } else ref.current?.close();
+      setTimeout(() => setRising(false), 900);
+    }
   }
+
+  const options: Array<{ value: Choice; label: string; note: string; disabled: boolean }> = [
+    {
+      value: "snapshot",
+      label: "Wayback snapshot",
+      note: snap ? `the copy from ${fmtTs(snap.timestamp)}` : "no archived copy exists",
+      disabled: !snap,
+    },
+    {
+      value: "replacement",
+      label: "Living replacement",
+      note: found ? found.url : "find one with the button above",
+      disabled: !found,
+    },
+    { value: "keep", label: "Keep as is", note: "the patch leaves this link alone", disabled: false },
+  ];
 
   return (
     <dialog
@@ -106,7 +129,7 @@ export function Seance({ r, docs, canPatch, chosen, onChoose, onClose }: Props) 
             </div>
           ) : (
             <div className="frame frame-empty">
-              <p>The Wayback Machine never captured this page, so there is nothing to bring back. Keep it, or find a replacement by hand.</p>
+              <p>The Wayback Machine never captured this page, so there is nothing to bring back. Keep it, or look for a living replacement below.</p>
             </div>
           )}
         </section>
@@ -164,6 +187,57 @@ export function Seance({ r, docs, canPatch, chosen, onChoose, onClose }: Props) 
         </section>
       </div>
 
+      {resurrectable && (
+        <section className="seance-find" aria-label="A living replacement">
+          <p className="pane-tag">A living replacement</p>
+          <div className="find-row">
+            <button type="button" className="btn btn-quiet" onClick={() => onLookup(r.url)} disabled={busy || lookup.state === "done"} aria-describedby="find-result">
+              {busy ? "Searching the living web…" : lookup.state === "done" ? "Searched" : "Look for a living replacement"}
+            </button>
+            <p className="hint find-hint">Asks the site, GitHub and its sitemap once. Nothing is searched until you press.</p>
+          </div>
+          <div id="find-result" className="find-result" role="status">
+            {busy && <span>Listening for a heartbeat…</span>}
+            {lookup.state === "error" && <span className="find-error">{lookup.message}</span>}
+            {lookup.state === "done" && !found && <span>No living replacement found{lookup.timedOut ? ". The search ran out of time before it could say for sure" : ""}.</span>}
+            {found && (
+              <dl className="find-found">
+                <div>
+                  <dt>Found alive</dt>
+                  <dd>
+                    <a className="mono" href={found.url} target="_blank" rel="noopener noreferrer nofollow">
+                      {found.url}
+                    </a>
+                  </dd>
+                </div>
+                <div>
+                  <dt>How we found it</dt>
+                  <dd>{reasonText(found.reason)}</dd>
+                </div>
+                <div>
+                  <dt>Sure</dt>
+                  <dd>{Math.round(found.confidence * 100)}%</dd>
+                </div>
+              </dl>
+            )}
+          </div>
+          {canPatch && (
+            <div className="choice" role="radiogroup" aria-labelledby="choice-h">
+              <p className="pane-tag" id="choice-h">
+                What the patch does with this link
+              </p>
+              {options.map((o) => (
+                <label key={o.value} className={`choice-opt${o.disabled ? " is-off" : ""}${choice === o.value ? " is-on" : ""}`}>
+                  <input type="radio" name="seance-choice" value={o.value} checked={choice === o.value} disabled={o.disabled} onChange={() => pick(o.value)} />
+                  <span className="choice-label">{o.label}</span>
+                  <span className="choice-note">{o.note}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
       {lines.length > 0 && (
         <section className="seance-patch" aria-label="What the patch changes">
           <p className="pane-tag">The patch</p>
@@ -177,6 +251,10 @@ export function Seance({ r, docs, canPatch, chosen, onChoose, onClose }: Props) 
         </section>
       )}
 
+      {canPatch && resurrectable && choice === "keep" && (
+        <p className="seance-kept hint">Kept as is: the patch will not touch this link.</p>
+      )}
+
       <footer className="seance-foot">
         {snap && (
           <a className="btn btn-quiet" href={snap.url} target="_blank" rel="noopener noreferrer">
@@ -184,21 +262,9 @@ export function Seance({ r, docs, canPatch, chosen, onChoose, onClose }: Props) 
           </a>
         )}
         <span className="grow" />
-        {canRaise ? (
-          <>
-            <button type="button" className="btn btn-quiet" onClick={() => decide(false)}>
-              {chosen ? "Let it rest" : "Leave it"}
-            </button>
-            <button type="button" className="btn btn-primary" onClick={() => decide(true)} autoFocus>
-              <span className="btn-lantern" aria-hidden="true" />
-              {chosen ? "Keep resurrected" : "Resurrect"}
-            </button>
-          </>
-        ) : (
-          <button type="button" className="btn btn-primary" onClick={() => ref.current?.close()} autoFocus>
-            Close
-          </button>
-        )}
+        <button type="button" className="btn btn-primary" onClick={() => ref.current?.close()} autoFocus>
+          {canPatch && resurrectable ? "Done" : "Close"}
+        </button>
       </footer>
       <div className="seance-rise" aria-hidden="true">
         <SpiritIcon cls="living" size={80} />
