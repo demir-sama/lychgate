@@ -36,7 +36,21 @@ Design rules live in `.kiro/steering/haunted-design.md`.
 - R5.4 Every interactive control shall be reachable by keyboard and have a visible focus ring; a skip link shall jump to the scanner.
 - R5.5 The illustration and icons shall be original SVG, with no third-party artwork.
 
-## R6 Later (milestone 2+)
-- R6.1 Shareable report page and README health badge (Neon, 30-day retention).
-- R6.2 Side-by-side resurrect preview (snapshot vs live) before accepting.
-- R6.3 Original sound with a mute toggle, off by default.
+## R6 Share the graveyard
+- R6.1 WHEN a scan is done, the system shall offer "Share report + badge", which saves the per-link verdicts (no documents, no timings, no IP addresses) to Neon Postgres and returns a public read-only page `/r/<id>`.
+- R6.2 The server shall recompute the health score from the submitted verdicts, so a client cannot claim a healthier graveyard than it sent; it shall validate every field and reject reports over 300 links or 600 KB.
+- R6.3 Report ids shall be 12 unguessable characters (60 bits); invalid ids shall 404 without touching the database.
+- R6.4 Reports shall be deleted 30 days after creation; an expired report shall show a "passed on" page and its badge shall turn grey ("report expired") instead of breaking the README.
+- R6.5 The system shall offer a README badge (`/api/badge/<id>`, SVG, XML-escaped) and copy its Markdown snippet to the clipboard.
+
+## R7 The séance (resurrect preview)
+- R7.1 WHERE a grave has a snapshot, the system shall offer "Hold a séance" (and the `s` key on a focused grave) to open a modal comparing Then (the Wayback capture, framed) with Now (status, landing URL, title today, drift, RDAP date, confidence).
+- R7.2 The framed capture shall load in Wayback's toolbar-less `if_` mode inside an `<iframe sandbox="">` with no permissions; CSP shall allow frames from `https://web.archive.org` only.
+- R7.3 WHERE the input has documents, the séance shall show the exact lines the patch changes (before struck through, after highlighted).
+- R7.4 The séance shall let the user Resurrect or Leave the link; the choice shall sync with the grave's switch, and focus shall return to the grave on close.
+- R7.5 The séance shall be a native modal dialog (focus trapped, Esc closes, backdrop click closes) and its motion (fog curtains parting, panes sliding in, a lantern rising on Resurrect) shall be off under reduced motion and Daylight.
+
+## R8 Sound
+- R8.1 The system shall offer a sound toggle, off by default and persisted.
+- R8.2 WHILE sound is on, the system shall voice the gate opening, the worst class in each batch of results (throttled to one voice per 140 ms), the scan finishing, and each resurrection.
+- R8.3 All sound shall be synthesized at runtime with Web Audio (no samples, nothing licensed).

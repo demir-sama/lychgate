@@ -15,6 +15,7 @@
 - [x] 12a. Live-scan fixes: DNS retry/cache and NXDOMAIN-only tombstones; SPA-shell guard; meta-refresh follow — R5.5, R5.8, R5.9
 - [x] 12b. Live-scan fixes from the first production GitHub scan (58/300 github.com links were 429): per-host cooldown + bounded retry; archived-link short-circuit (a Wayback link was flagged Zombie) — R3.5, R5.10 (`tests/backoff.test.ts`)
 - [x] 12c. DNS-over-HTTPS confirmation for transient resolver errors (Vercel answered EBUSY for an unregistered domain, so it showed as Restless instead of Tombstone) — R5.11 (`tests/doh.test.ts`)
+- [x] 12d. Moved-off-site drift: a 2xx reached by redirecting to another host and path is Drifted, same-path moves stay Living — R5.12 (`tests/offsite.test.ts`)
 - [ ] 13. Shared cache across instances (Neon) for Wayback/RDAP results
 - [ ] 14. Per-link cite date for website input (earliest Wayback capture of the citing page that contains the link)
 - [ ] 15. Calibrate thresholds on a labelled sample (≥ 200 links) and report precision per class
