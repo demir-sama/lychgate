@@ -10,6 +10,9 @@ import { GraveCard, graveId } from "./graveyard/GraveCard";
 import { HealthGauge } from "./graveyard/HealthGauge";
 import { SpiritIcon } from "./graveyard/icons";
 import { Plot } from "./graveyard/Plot";
+import { Seance } from "./graveyard/Seance";
+import { play } from "@/lib/sound/sound";
+import { toShared } from "@/lib/report/report";
 import { DEFAULT_RESURRECT, ORDER, RESURRECTABLE, SPIRITS, fmtTs } from "./graveyard/spirits";
 
 type Mode = "github" | "site" | "markdown";
@@ -28,10 +31,24 @@ const SAMPLE_MD = `# Reading list
 - [Cloud metadata (refused)](http://169.254.169.254/latest/meta-data/)
 `;
 
+const LOST_WEB_MD = `# The lost web: links the whole world once shared
+
+- [GeoCities](http://www.geocities.com/)
+- [Google Reader](https://www.google.com/reader/)
+- [Vine](https://vine.co/)
+- [Google+](https://plus.google.com/)
+- [del.icio.us bookmarks](http://del.icio.us/)
+- [Yahoo! Answers](https://answers.yahoo.com/)
+- [Internet Explorer 6 downloads](http://www.microsoft.com/windows/ie/ie6/)
+- [The original Space Jam site](https://www.spacejam.com/1996/)
+- [Wikipedia](https://www.wikipedia.org/)
+`;
+
 const PRESETS: Array<{ label: string; mode: Mode; value: string }> = [
   { label: "the-art-of-command-line", mode: "github", value: "jlevy/the-art-of-command-line" },
   { label: "sindresorhus/awesome", mode: "github", value: "sindresorhus/awesome" },
   { label: "a haunted reading list", mode: "markdown", value: SAMPLE_MD },
+  { label: "the lost web", mode: "markdown", value: LOST_WEB_MD },
 ];
 
 const BESTIARY: LinkClass[] = ["living", "tombstone", "ghost", "drifted", "zombie"];
@@ -68,6 +85,11 @@ export default function Scanner() {
   const [openGrave, setOpenGrave] = useState<string | null>(null);
   const [daylight, setDaylight] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [seance, setSeance] = useState<string | null>(null);
+  const [sound, setSound] = useState(false);
+  const soundRef = useRef(false);
+  const [share, setShare] = useState<{ state: "idle" | "saving" | "done" | "error"; id?: string; error?: string }>({ state: "idle" });
+  const [badgeCopied, setBadgeCopied] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
   const listRef = useRef<HTMLOListElement>(null);
@@ -81,6 +103,17 @@ export default function Scanner() {
     document.documentElement.dataset.theme = daylight ? "daylight" : "night";
     localStorage.setItem("lychgate:daylight", daylight ? "1" : "0");
   }, [daylight]);
+
+  useEffect(() => {
+    setSound(localStorage.getItem("lychgate:sound") === "1");
+  }, []);
+  useEffect(() => {
+    soundRef.current = sound;
+    localStorage.setItem("lychgate:sound", sound ? "1" : "0");
+  }, [sound]);
+  const cue = useCallback((c: Parameters<typeof play>[0], force = false) => {
+    if (soundRef.current) play(c, { force });
+  }, []);
 
   const counts = useMemo(() => {
     const c = Object.fromEntries(ORDER.map((k) => [k, 0])) as Record<LinkClass, number>;
@@ -126,7 +159,10 @@ export default function Scanner() {
     setChosen({});
     setFilter("all");
     setOpenGrave(null);
+    setSeance(null);
+    setShare({ state: "idle" });
     setStatus("Opening the gate…");
+    cue("open", true);
     const body =
       mode === "github" ? { kind: "github", repo } : mode === "site" ? { kind: "site", url: site, sitemap, citeDate } : { kind: "markdown", text: md, citeDate };
     try {
@@ -145,6 +181,9 @@ export default function Scanner() {
         const b = batch;
         batch = [];
         setResults((prev) => [...prev, ...b]);
+        // One voice per frame: the worst spirit in the batch speaks.
+        const worst = b.map((r) => r.cls).sort((x, y) => ORDER.indexOf(x) - ORDER.indexOf(y))[0];
+        if (worst) cue(worst);
         setChosen((c) => {
           const n = { ...c };
           for (const r of b) if (r.snapshot && DEFAULT_RESURRECT.has(r.cls)) n[r.url] = true;
@@ -175,6 +214,7 @@ export default function Scanner() {
             if (raf) cancelAnimationFrame(raf);
             flush();
             setSummary(ev.summary);
+            cue("done", true);
             setStatus(`The gate is closed. ${ev.summary.total} links checked in ${(ev.ms / 1000).toFixed(1)}s.`);
           } else if (ev.type === "error") setError(ev.message);
         }
@@ -234,6 +274,43 @@ export default function Scanner() {
     }
   }
 
+  const choose = useCallback(
+    (url: string, v: boolean) => {
+      setChosen((c) => ({ ...c, [url]: v }));
+      if (v) cue("resurrect", true);
+    },
+    [cue],
+  );
+
+  async function shareReport() {
+    setShare({ state: "saving" });
+    try {
+      const res = await fetch("/api/report", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ source, results: results.slice(0, 300).map(toShared) }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error ?? `HTTP ${res.status}`);
+      setShare({ state: "done", id: j.id });
+    } catch (err) {
+      setShare({ state: "error", error: (err as Error).message });
+    }
+  }
+
+  async function copyBadge() {
+    if (!share.id) return;
+    const origin = window.location.origin;
+    const md = `[![Lychgate link health](${origin}/api/badge/${share.id})](${origin}/r/${share.id})`;
+    try {
+      await navigator.clipboard.writeText(md);
+      setBadgeCopied(true);
+      setTimeout(() => setBadgeCopied(false), 2000);
+    } catch {
+      download("lychgate-badge.md", md + "\n");
+    }
+  }
+
   function applyPreset(p: (typeof PRESETS)[number]) {
     setMode(p.mode);
     if (p.mode === "github") setRepo(p.value);
@@ -271,6 +348,12 @@ export default function Scanner() {
       } else if (e.key === "Enter" && t.classList.contains("grave")) {
         const url = sorted.find((r) => graveId(r.url) === t.id)?.url;
         if (url) setOpenGrave((o) => (o === url ? null : url));
+      } else if (e.key === "s" && t.classList.contains("grave")) {
+        const r = sorted.find((x) => graveId(x.url) === t.id);
+        if (r?.snapshot) {
+          e.preventDefault();
+          setSeance(r.url);
+        }
       } else if (e.key === "Escape") setOpenGrave(null);
     }
     window.addEventListener("keydown", onKey);
@@ -302,9 +385,18 @@ export default function Scanner() {
           </span>
           Lychgate
         </Link>
+        <span className="topbar-btns">
+        <button type="button" className="btn btn-quiet sound-toggle" aria-pressed={sound} onClick={() => setSound((v) => !v)} title="Original synthesized sound">
+          <svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M3 8h3l4-3v10l-4-3H3z" fill="currentColor" fillOpacity=".2" />
+            {sound ? <path d="M13 7.5a3.5 3.5 0 0 1 0 5M15.5 5a7 7 0 0 1 0 10" /> : <path d="M13 8l4 4M17 8l-4 4" />}
+          </svg>
+          Sound {sound ? "on" : "off"}
+        </button>
         <button type="button" className="btn btn-quiet theme-toggle" aria-pressed={daylight} onClick={() => setDaylight((d) => !d)}>
           <span aria-hidden="true">{daylight ? "☾" : "☀"}</span> {daylight ? "Night" : "Daylight"} mode
         </button>
+        </span>
       </div>
 
       <header className="hero">
@@ -404,7 +496,7 @@ export default function Scanner() {
           </div>
           <p className="kbd-hint">
             <kbd>/</kbd> focus · <kbd>j</kbd>
-            <kbd>k</kbd> walk the graves · <kbd>Enter</kbd> evidence · <kbd>Esc</kbd> close
+            <kbd>k</kbd> walk the graves · <kbd>Enter</kbd> evidence · <kbd>s</kbd> séance · <kbd>Esc</kbd> close
           </p>
         </form>
 
@@ -504,7 +596,27 @@ export default function Scanner() {
                   <button type="button" className="btn btn-quiet" onClick={() => download("lychgate-report.md", reportMarkdown())}>
                     ↓ Report
                   </button>
+                  <button type="button" className="btn btn-quiet btn-share" onClick={shareReport} disabled={share.state === "saving" || share.state === "done"}>
+                    {share.state === "saving" ? "Carving the headstone…" : share.state === "done" ? "Shared ✓" : "Share report + badge"}
+                  </button>
                 </div>
+                {share.state === "error" && (
+                  <p className="error share-msg" role="alert">
+                    {share.error}
+                  </p>
+                )}
+                {share.state === "done" && share.id && (
+                  <div className="share-card" role="status">
+                    <img src={`/api/badge/${share.id}`} alt={`Link health badge: ${health}% alive`} height={20} />
+                    <a href={`/r/${share.id}`} className="mono" target="_blank" rel="noopener">
+                      /r/{share.id}
+                    </a>
+                    <span className="hint">Public for 30 days, then deleted.</span>
+                    <button type="button" className="btn btn-quiet" onClick={copyBadge}>
+                      {badgeCopied ? "Copied ✓" : "Copy README badge"}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -515,7 +627,8 @@ export default function Scanner() {
                   r={r}
                   canPatch={docs.length > 0}
                   chosen={!!chosen[r.url]}
-                  onChoose={(v) => setChosen((c) => ({ ...c, [r.url]: v }))}
+                  onChoose={(v) => choose(r.url, v)}
+                  onSeance={r.snapshot ? () => setSeance(r.url) : undefined}
                   open={openGrave === r.url}
                   onToggle={(v) => setOpenGrave((o) => (v ? r.url : o === r.url ? null : o))}
                 />
@@ -524,6 +637,18 @@ export default function Scanner() {
             {sorted.length === 0 && results.length > 0 && <p className="empty">No {filter === "all" ? "" : SPIRITS[filter as LinkClass].plural.toLowerCase()} here.</p>}
           </section>
         )}
+        <Seance
+          r={seance ? (results.find((x) => x.url === seance) ?? null) : null}
+          docs={docs}
+          canPatch={docs.length > 0}
+          chosen={!!(seance && chosen[seance])}
+          onChoose={choose}
+          onClose={() => {
+            const u = seance;
+            setSeance(null);
+            if (u) requestAnimationFrame(() => document.getElementById(graveId(u))?.focus({ preventScroll: true }));
+          }}
+        />
       </main>
     </>
   );

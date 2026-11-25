@@ -17,15 +17,16 @@ type Props = {
   onChoose: (v: boolean) => void;
   open: boolean;
   onToggle: (v: boolean) => void;
+  onSeance?: () => void;
 };
 
-export function GraveCard({ r, canPatch, chosen, onChoose, open, onToggle }: Props) {
+export function GraveCard({ r, canPatch, chosen, onChoose, open, onToggle, onSeance }: Props) {
   const s = SPIRITS[r.cls];
   const id = graveId(r.url);
   const conf = Math.round(r.confidence * 100);
   const where = r.occurrences.slice(0, 3).map((o) => (o.line ? `${o.doc}:${o.line}` : o.doc));
   return (
-    <li className={`grave c-${r.cls}`} id={id} tabIndex={-1} aria-labelledby={`${id}-t`}>
+    <li className={`grave c-${r.cls}${chosen ? " is-raised" : ""}`} id={id} tabIndex={-1} aria-labelledby={`${id}-t`}>
       <div className="stone" aria-hidden="true">
         <SpiritIcon cls={r.cls} size={30} />
       </div>
@@ -83,9 +84,16 @@ export function GraveCard({ r, canPatch, chosen, onChoose, open, onToggle }: Pro
             <span className="snap-label">
               {r.snapshot.beforeCite ? "Closest copy before it was cited" : "Latest surviving copy"}: <strong>{fmtTs(r.snapshot.timestamp)}</strong>
             </span>
-            <a className="btn btn-quiet" href={r.snapshot.url} target="_blank" rel="noopener noreferrer">
-              Preview<span className="sr-only"> snapshot (opens the Wayback Machine)</span> ↗
-            </a>
+            {onSeance ? (
+              <button type="button" className="btn btn-quiet btn-seance" onClick={onSeance}>
+                <span className="candle-sm" aria-hidden="true" />
+                Hold a séance<span className="sr-only">: compare the archived copy with today</span>
+              </button>
+            ) : (
+              <a className="btn btn-quiet" href={r.snapshot.url} target="_blank" rel="noopener noreferrer">
+                Preview<span className="sr-only"> snapshot (opens the Wayback Machine)</span> ↗
+              </a>
+            )}
             {canPatch && RESURRECTABLE.has(r.cls) && (
               <label className="switch">
                 <input type="checkbox" checked={chosen} onChange={(e) => onChoose(e.target.checked)} />
