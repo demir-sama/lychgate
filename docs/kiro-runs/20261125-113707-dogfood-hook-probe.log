@@ -1,0 +1,5 @@
+[tool] Creating hook-probe.md
+[tool] status: Completed
+I created `docs/hook-probe.md` with a heading and the two links. I saw no output from the `dogfood-doc-links` hook. The write result only said "Successfully created … (4 lines)", and nothing else was added to my context. I don't know whether the hook ran and printed nothing, didn't run, or ran and its output wasn't shown to me.
+
+I edited no other file.
