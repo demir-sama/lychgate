@@ -28,6 +28,7 @@ const SAMPLE_MD = `# Reading list
 
 - [dtach](https://github.com/bogner/dtach)
 - [HTML 4.01 spec](https://www.w3.org/TR/html4/)
+- [kubectl overview (moved)](https://kubernetes.io/docs/user-guide/kubectl-overview/)
 - [A page that never existed](https://www.w3.org/this/page/was/never/here)
 - [Unregistered domain](https://lychgate-demo-unregistered-domain-example.com/docs)
 - [Cloud metadata (refused)](http://169.254.169.254/latest/meta-data/)
