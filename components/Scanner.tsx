@@ -374,7 +374,7 @@ export default function Scanner() {
 
   return (
     <>
-      <div className="topbar">
+      <nav className="topbar" aria-label="Lychgate">
         <Link className="brand" href="/" aria-label="Lychgate home">
           <span className="brand-mark" aria-hidden="true">
             <svg viewBox="0 0 32 32" width="26" height="26">
@@ -398,7 +398,7 @@ export default function Scanner() {
           <span aria-hidden="true">{daylight ? "☾" : "☀"}</span> {daylight ? "Night" : "Daylight"} mode
         </button>
         </span>
-      </div>
+      </nav>
 
       <header className="hero">
         <GateScene open={running} />

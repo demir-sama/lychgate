@@ -12,7 +12,8 @@ import { SPIRITS } from "./spirits";
 export function Plot({ results, total, onPick }: { results: LinkResult[]; total: number; onPick: (url: string) => void }) {
   const pending = Math.max(0, total - results.length);
   return (
-    <div className="plot" role="img" aria-label={`Graveyard plot: ${results.length} of ${total} links placed.`}>
+    <div className="plot">
+      <p className="sr-only">Graveyard plot: {results.length} of {total} links placed. The list below has every grave.</p>
       <div className="plot-grid">
         {results.map((r, i) => (
           <button
