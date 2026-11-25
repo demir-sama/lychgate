@@ -89,3 +89,23 @@ export function redirectedToRoot(original: string, finalUrl: string | undefined)
     return false;
   }
 }
+
+/**
+ * True when a link now forwards to a different host AND a different path: the thing you cited
+ * was folded into some other site (plus.google.com -> a blog post). Same-path domain moves
+ * (twitter.com/x -> x.com/x, http -> https, adding/removing www) are honest moves, not drift.
+ */
+export function movedOffsite(original: string, finalUrl: string | undefined): { host: string } | null {
+  if (!finalUrl) return null;
+  try {
+    const a = new URL(original);
+    const b = new URL(finalUrl);
+    const host = (u: URL) => u.hostname.toLowerCase().replace(/^www\./, "");
+    if (host(a) === host(b)) return null;
+    const path = (u: URL) => (u.pathname.replace(/\/+$/, "") || "/").toLowerCase();
+    if (path(a) === path(b)) return null;
+    return { host: b.hostname };
+  } catch {
+    return null;
+  }
+}

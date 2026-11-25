@@ -1,7 +1,7 @@
 import { findSnapshot, fetchSnapshotHtml, type Snapshot } from "../archive/wayback";
 import { classify, NEEDS_RESURRECTION, type Evidence } from "../classify/classify";
 import { cosineSimilarity, lengthRatio, parseHtml } from "../classify/html";
-import { detectParked, looksLikeNotFound, redirectedToRoot } from "../classify/signals";
+import { detectParked, looksLikeNotFound, movedOffsite, redirectedToRoot } from "../classify/signals";
 import { lookupRdap } from "../domain/rdap";
 import { HostLimiter, Semaphore } from "../fetch/limiter";
 import { NXDOMAIN_CODES, TRANSIENT_DNS } from "../fetch/guard";
@@ -105,6 +105,7 @@ export async function analyzeTarget(target: Target, ctx: ScanContext): Promise<L
     if (parked) ev.parked = parked;
   }
   if (probe.ok && !archived) ev.redirectedToRoot = redirectedToRoot(target.url, probe.finalUrl);
+  if (probe.ok && !archived && probe.redirects.length) ev.movedOffsite = movedOffsite(target.url, probe.finalUrl) ?? undefined;
 
   // Soft-404 probe: does a made-up sibling URL look the same?
   if (probe.ok && probe.body && !archived && !ev.parked && !ev.notFoundText && !ev.redirectedToRoot && isDeep(url) && !ctx.signal?.aborted) {

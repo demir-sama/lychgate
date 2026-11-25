@@ -33,6 +33,8 @@ export type Evidence = {
   title?: string;
   notFoundText?: boolean;
   redirectedToRoot?: boolean;
+  /** the link forwards to a different host and path (see signals.movedOffsite) */
+  movedOffsite?: { host: string };
   /** live page vs a made-up sibling URL; liveTextLength = visible text chars of the live page */
   softProbe?: { status: number; similarity: number; lengthRatio: number; titleMatch: boolean; liveTextLength?: number };
   parked?: { signature: string };
@@ -167,6 +169,17 @@ export function classify(ev: Evidence): Verdict {
       cls: "drifted",
       confidence: round(Math.min(0.9, conf)),
       reasons: [`Live, but only ${Math.round(ev.drift.similarity * 100)}% similar to the snapshot from ${fmtTs(ev.drift.snapshotTimestamp)}, near when it was cited. The page may no longer say what you cited.`],
+    };
+  }
+
+  if (ev.movedOffsite) {
+    return {
+      cls: "drifted",
+      confidence: 0.6,
+      reasons: [
+        `Now forwards to a different site (${ev.movedOffsite.host}${ev.finalUrl ? `: ${ev.finalUrl.slice(0, 120)}` : ""}). Whatever you cited no longer lives at this address.`,
+        `HTTP ${status} after ${ev.redirectCount ?? 1} redirect${(ev.redirectCount ?? 1) > 1 ? "s" : ""}.`,
+      ],
     };
   }
 
