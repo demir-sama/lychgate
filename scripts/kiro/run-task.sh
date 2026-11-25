@@ -12,5 +12,5 @@ kiro-cli whoami >/dev/null 2>&1 || { echo "Kiro CLI is not signed in. Run: kiro-
 mkdir -p docs/kiro-runs
 log="docs/kiro-runs/$(date +%Y%m%d-%H%M%S)-$spec-$task.log"
 kiro-cli chat --agent gravedigger --no-interactive --trust-workspace --trust-tools=fs_read,fs_write,shell \
-  "Implement task $task of .kiro/specs/$spec/tasks.md. Read requirements.md and design.md for that spec first. Test first; finish only when pnpm test and pnpm typecheck pass. Then tick the task and add one dated line to KIRO_USAGE.md." \
+  "You are running inside Kiro CLI as the gravedigger custom agent. Implement only task $task of .kiro/specs/$spec/tasks.md. Read requirements.md and design.md for that spec first. Test first; finish only when pnpm test and pnpm typecheck pass. Do not edit .kiro/agents or commit. Then tick the task and add one dated line to KIRO_USAGE.md saying it was built in Kiro CLI by the gravedigger agent via scripts/kiro/run-task.sh $spec $task." \
   2>&1 | tee "$log"

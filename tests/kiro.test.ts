@@ -44,6 +44,16 @@ describe("Kiro hooks stay in sync with the repo", () => {
   });
 });
 
+describe("dogfood-doc-links hook", () => {
+  const h = hooks.hooks.find((x) => x.name === "dogfood-doc-links")!;
+  it("is enabled, runs the script, and fires on Markdown only", () => {
+    expect(h.enabled).toBe(true);
+    expect(h.action).toMatchObject({ type: "command", command: "node scripts/hooks/dogfood-links.mjs" });
+    expect(new RegExp(h.matcher!).test("README.md")).toBe(true);
+    expect(new RegExp(h.matcher!).test("lib/scan/engine.ts")).toBe(false);
+  });
+});
+
 describe("block-env-writes hook", () => {
   const run = (input: unknown) => spawnSync(process.execPath, [path.join(root, "scripts/hooks/block-env-writes.mjs")], { input: JSON.stringify(input), encoding: "utf8" });
   it("blocks .env files with exit code 2", () => {
@@ -59,14 +69,22 @@ describe("block-env-writes hook", () => {
 });
 
 describe("Kiro custom agent and .kiro hygiene", () => {
-  const agent = readFileSync(path.join(root, ".kiro/agents/gravedigger.md"), "utf8");
-  it("loads only resources that exist", () => {
-    for (const m of agent.matchAll(/file:\/\/([^\s]+)/g)) expect(existsSync(path.join(root, m[1])), m[1]).toBe(true);
+  const agent = JSON.parse(readFileSync(path.join(root, ".kiro/agents/gravedigger.json"), "utf8"));
+  it("is a Kiro CLI agent that loads only resources that exist", () => {
+    expect(agent.name).toBe("gravedigger");
+    for (const r of agent.resources as string[]) {
+      const rel = r.replace(/^file:\/\//, "");
+      const dir = path.join(root, path.dirname(rel));
+      expect(existsSync(rel.includes("*") ? dir : path.join(root, rel)), r).toBe(true);
+    }
   });
-  it("denies pushes, curl and .env writes", () => {
-    expect(agent).toMatch(/"git push\*"/);
-    expect(agent).toMatch(/"curl\*"/);
-    expect(agent).toMatch(/fs_write[\s\S]*"\.env\*"[\s\S]*deny/);
+  it("denies pushes, commits, curl and .env reads and writes", () => {
+    const denied: string[] = agent.toolsSettings.execute_bash.deniedCommands;
+    for (const cmd of ["git push origin main", "git commit -m x", "curl https://example.com", "vercel deploy"]) {
+      expect(denied.some((re) => new RegExp(`^${re}$`).test(cmd)), cmd).toBe(true);
+    }
+    expect(agent.toolsSettings.fs_write.deniedPaths).toContain(".env*");
+    expect(agent.toolsSettings.fs_read.deniedPaths).toContain(".env*");
   });
   it("never gitignores .kiro or anything inside it (Kiroween rule)", () => {
     const gi = readFileSync(path.join(root, ".gitignore"), "utf8").split("\n").map((l) => l.trim());
