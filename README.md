@@ -18,7 +18,7 @@ Each grave shows cause of death, evidence, confidence and the Wayback Machine sn
 
 **Live:** https://lychgate-taupe.vercel.app
 
-## Status: milestone 1
+## Status: milestone 2
 
 Working today:
 - Scanner for GitHub repos (README + up to 20 Markdown files, cite dates from git history, no token needed), web pages / sitemaps, and pasted Markdown or URL lists (≤ 300 links)
@@ -26,9 +26,13 @@ Working today:
 - Classifier for all seven states, Wayback CDX/Availability lookup, RDAP takeover checks
 - Streaming haunted UI: an original SVG lychgate whose doors open while it scans, fog that thickens as health drops, a plot where each link rises from the ground, worst-first graves with evidence, j/k keyboard walking, and a Daylight mode (high contrast, no motion)
 - Resurrect switches, patched Markdown / unified diff / PR description / report
+- **The séance:** hold a dead link and its last good copy side by side (a sandboxed, no-permission Wayback frame next to today's status, landing URL and drift) and see the exact lines the patch will change before you resurrect it (`s` on a focused grave)
+- **Share the graveyard:** a public read-only report page and a README health badge, stored in Neon Postgres for 30 days, then deleted
+- Original synthesized sound (Web Audio, off by default): a lantern chime for the living, a distant bell for each tombstone, a falling wail for ghosts
+- "Try the lost web": a preset of world-famous dead links (GeoCities, Google+, Vine, Google Reader…) cited in 2012
 - Kiro hooks in `.kiro/hooks/lychgate.json` (test suites on save, `.env` write block, secret scan on stop, spec checklist sync)
 
-Next: side-by-side resurrect preview, shareable report + README badge (Neon), `lychgate-mcp` server, Gravekeeper crew app. See `.kiro/specs/*/tasks.md`.
+Next: `lychgate-mcp` server (spec ready, built in Kiro CLI), suggested live replacements, Gravekeeper crew app. See `.kiro/specs/*/tasks.md`.
 
 ## Run locally
 
@@ -39,7 +43,16 @@ pnpm test         # vitest + fast-check
 pnpm secret-scan  # run before every commit
 ```
 
-Optional server-side env: `GITHUB_TOKEN` (raises GitHub API limits; never needed, never sent to the browser).
+Optional server-side env: `GITHUB_TOKEN` (raises GitHub API limits; never needed, never sent to the browser) and `DATABASE_URL` (Neon Postgres, turns on shared reports). Create the table with:
+
+```sql
+CREATE TABLE IF NOT EXISTS reports (
+  id text PRIMARY KEY, source text NOT NULL, health int NOT NULL,
+  summary jsonb NOT NULL, results jsonb NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  expires_at timestamptz NOT NULL DEFAULT now() + interval '30 days'
+);
+```
 
 If your machine uses a fake-IP DNS proxy (every host resolves into 198.18.0.0/15), set `LYCHGATE_DEV_ALLOW_FAKE_IP=1` for local dev. It is ignored in production and on Vercel.
 
@@ -55,6 +68,8 @@ If your machine uses a fake-IP DNS proxy (every host resolves into 198.18.0.0/15
 
 Response: `application/x-ndjson`, one event per line: `status`, `meta`, `result` (one per link), `done`.
 
+`POST /api/report` with `{ source, results }` saves a finished scan and returns `{ id, path: "/r/<id>", badge: "/api/badge/<id>" }`. The server recomputes the health score itself.
+
 ## Security
 
 - Only http/https on ports 80/443/8080/8443, no credentials in URLs, no internal hostnames
@@ -66,6 +81,7 @@ Response: `application/x-ndjson`, one event per line: `status`, `meta`, `result`
 
 - `.kiro/steering/` covers product, tech, structure, security, haunted design and testing
 - `.kiro/specs/` holds EARS requirements, design and task lists for the scanner, resurrection engine, graveyard UI, MCP server and gravekeeper crew
+- `.kiro/agents/gravedigger.md` is a custom agent for Kiro CLI/IDE that builds one spec task at a time, test-first, with the steering loaded as resources and `git push`, `curl` and `.env` writes denied; `scripts/kiro/run-task.sh <spec> <n>` runs a task headless
 - `.kiro/hooks/lychgate.json` (v1 schema) wires the test suites, a `.env` write block, the secret scan and spec-checklist sync into the agent loop; `tests/kiro.test.ts` keeps the hooks pointing at real files and scripts
 - See [KIRO_USAGE.md](KIRO_USAGE.md) for how each part was built, including what was not built in Kiro
 

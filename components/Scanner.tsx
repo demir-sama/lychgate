@@ -44,11 +44,11 @@ const LOST_WEB_MD = `# The lost web: links the whole world once shared
 - [Wikipedia](https://www.wikipedia.org/)
 `;
 
-const PRESETS: Array<{ label: string; mode: Mode; value: string }> = [
+const PRESETS: Array<{ label: string; mode: Mode; value: string; citeDate?: string }> = [
   { label: "the-art-of-command-line", mode: "github", value: "jlevy/the-art-of-command-line" },
   { label: "sindresorhus/awesome", mode: "github", value: "sindresorhus/awesome" },
   { label: "a haunted reading list", mode: "markdown", value: SAMPLE_MD },
-  { label: "the lost web", mode: "markdown", value: LOST_WEB_MD },
+  { label: "the lost web", mode: "markdown", value: LOST_WEB_MD, citeDate: "2012-06-01" },
 ];
 
 const BESTIARY: LinkClass[] = ["living", "tombstone", "ghost", "drifted", "zombie"];
@@ -315,6 +315,7 @@ export default function Scanner() {
     setMode(p.mode);
     if (p.mode === "github") setRepo(p.value);
     else if (p.mode === "markdown") setMd(p.value);
+    if (p.mode !== "github") setCiteDate(p.citeDate ?? "");
     requestAnimationFrame(() => inputRef.current?.focus());
   }
 

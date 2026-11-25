@@ -18,8 +18,15 @@ This file is the honest record the Kiroween rules ask for: what was built in Kir
 
 - First production scan of a real repo (300 links) exposed two false results: GitHub rate-limited 58 links (429, shown as Restless), and a Wayback link was flagged Zombie because the archived page had a for-sale banner. Fixed with a per-host cooldown and bounded retry (R3.5) and an archived-link rule (R5.10), both test-first in `tests/backoff.test.ts`. The same live check showed Vercel's resolver answering `EBUSY` for an unregistered domain, so a DNS-over-HTTPS second opinion now confirms NXDOMAIN (R5.11, `tests/doh.test.ts`).
 
-## Planned Kiro usage (milestone 2 onward)
-- Spec-driven tasks in Kiro IDE for the canvas graveyard, resurrect flow, report/badge, MCP server
+## Milestone 2: séance, sharing, sound (25 Nov 2026)
+- **Not written in Kiro.** Kiro CLI 3.6.0 is now installed on the build machine and the repo has a custom agent for it, but the CLI's Google sign-in (device flow) still needs to be approved by the account owner, so this pass was again written by an AI coding assistant outside Kiro, working from the `graveyard-ui` and `resurrection-engine` specs and the steering files.
+- Specs first: `graveyard-ui` R6 (sharing), R7 (séance) and R8 (sound) were written as EARS requirements before the code, then ticked in `tasks.md` with the test that covers each.
+- Built: the séance (a sandboxed, no-permission Wayback frame next to today's evidence and the exact patch lines), shareable report pages and a README badge on Neon Postgres with server-recomputed health and 30-day deletion, synthesized Web Audio sound (off by default), resurrection motion, and a "lost web" demo preset.
+- The first hosted run of that preset found a classifier gap: plus.google.com forwards to a blog post and was reported Living. Fixed test-first as `scanner-classifier` R5.12 (moved off-site → Drifted; same-path moves such as twitter.com → x.com stay Living), with a fast-check property in `tests/offsite.test.ts`.
+- Kiro assets added for the next milestones: full EARS requirements, design and tasks for `mcp-server`; requirements for `crew-gravekeeper`; the `gravedigger` custom agent (`.kiro/agents/gravedigger.md`: steering as resources, test/typecheck commands allowed, `git push`, `curl` and `.env` writes denied); `scripts/kiro/run-task.sh` to run a spec task headless in Kiro CLI.
+
+## Planned Kiro usage (milestone 3 onward)
+- `mcp-server` tasks 1–7 in Kiro CLI with the `gravedigger` agent (`scripts/kiro/run-task.sh mcp-server <n>`)
 - Use the committed hooks in the Kiro IDE/CLI loop; enable the dogfood-links hook once `lychgate-mcp` ships
 - `lychgate-mcp` registered in `.kiro/settings/mcp.json`
 - Kiro Crew "Gravekeeper" app (separate repo)
@@ -28,4 +35,6 @@ This file is the honest record the Kiroween rules ask for: what was built in Kir
 - Wayback Machine and RDAP public APIs at runtime
 - Fonts: Fraunces and IBM Plex (SIL Open Font License) via `next/font`
 - Illustrations and icons: original SVG drawn for this project
+- Sound in the app: synthesized at runtime with the Web Audio API (no samples, nothing licensed)
+- Database: Neon Postgres (free tier) for shared reports
 - Video/voice/music tools for the demo will be listed here when used
