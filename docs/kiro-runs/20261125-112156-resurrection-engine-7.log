@@ -1,0 +1,16 @@
+[tool] status: Failed
+[tool] Reading listing resurrection-engine
+[tool] status: Completed
+[tool] Reading tasks.md:1, requirements.md:1
+[tool] status: Completed
+I haven't changed anything for task 7. It can't be finished as written, and the spec is incomplete.
+
+- **Blocked on task 4:** Task 7 is the per-link choice of snapshot, replacement or keep. `tasks.md` already says snapshot and keep are done in the séance, and the replacement option "waits on task 4". Task 4, the suggested live replacement, is still unchecked. A replacement choice would have nothing to offer, so any UI I wrote now would be guesswork.
+- **No design doc:** `.kiro/specs/resurrection-engine/` has only `tasks.md` and `requirements.md`. There is no `design.md`. The requirements file is still the day-1 draft and has no requirement IDs for task 7.
+
+Ticking task 7 or adding the `KIRO_USAGE.md` line would claim work that wasn't done, so I did neither.
+
+Which of these do you want?
+1. Run task 4 first (same-site search for moved pages, GitHub rename lookup through the API redirect). Then I do task 7 on top of it. Task 4 needs a design decision on how to find moved pages, and every fetch has to go through the SSRF guard.
+2. Narrow task 7 to the snapshot-or-keep choice that already exists. I'd split the replacement option into a new task, then tick task 7 once I've added tests for the existing choice.
+3. First write the missing EARS requirements and `design.md` for this spec, then continue.

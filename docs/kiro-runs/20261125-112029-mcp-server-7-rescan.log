@@ -1,0 +1,17 @@
+[tool] Running: @lychgate/scan_links
+[tool] Running: @lychgate/scan_links
+[tool] status: Completed
+[tool] status: Completed
+[tool] Running: @lychgate/find_snapshot
+[tool] Running: grep -n "first dogfood scans" KIRO_USAGE.md
+[tool] status: Completed
+[tool] status: Completed
+[tool] Editing KIRO_USAGE.md
+[tool] status: Completed
+I re-ran `scan_links` on both files and replaced the old dogfood line in `KIRO_USAGE.md`. I changed nothing else.
+
+- **`README.md`:** 4 links, 3 living and 1 restless, with health 100. The restless one is https://kiroween.devpost.com/ (`README.md:5`). It returned HTTP 403 with a "Just a moment..." page, which looks like bot-blocking, so it isn't called dead.
+- **Snapshot:** `scan_links` returned no snapshot for that link, so I ran `find_snapshot` on it. The closest capture is https://web.archive.org/web/20261023080344/https://kiroween.devpost.com/, taken 2026-10-23.
+- **`KIRO_USAGE.md`:** 0 links, because it contains no URLs.
+
+The new line replaces the old one, which said all four links were Sealed because of the DNS proxy.

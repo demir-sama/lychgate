@@ -2,9 +2,11 @@
   "mcpServers": {
     "lychgate": {
       "command": "node",
-      "args": ["packages/lychgate-mcp/dist/index.js"],
-      "disabled": true,
-      "_comment": "Enable after lychgate-mcp is built; used for dogfood hooks and Kiro write-up."
+      "args": [
+        "packages/lychgate-mcp/dist/index.js"
+      ],
+      "disabled": false,
+      "_comment": "Built with `pnpm mcp:build`. Gives Kiro agents scan_links, classify_url, find_snapshot, check_drift and suggest_replacement."
     }
   }
 }

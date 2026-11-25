@@ -1,0 +1,59 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "classifier-property-suite",
+      "description": "When the classifier or its signals change, re-run the classifier unit and property (fast-check) tests.",
+      "enabled": true,
+      "trigger": "PostFileSave",
+      "matcher": "lib/classify/.*\\.ts$",
+      "action": { "type": "command", "command": "pnpm vitest run tests/classify.test.ts tests/signals.test.ts tests/backoff.test.ts" },
+      "timeout": 60
+    },
+    {
+      "name": "ssrf-guard-suite",
+      "description": "Any edit to the fetch layer or IP policy re-runs the SSRF guard, resolver, HTTP, limiter and backoff tests. Security first: these must stay green.",
+      "enabled": true,
+      "trigger": "PostFileSave",
+      "matcher": "lib/(fetch|net)/.*\\.ts$",
+      "action": { "type": "command", "command": "pnpm vitest run tests/guard.test.ts tests/ip.test.ts tests/http.test.ts tests/resolver.test.ts tests/limiter.test.ts tests/backoff.test.ts" },
+      "timeout": 60
+    },
+    {
+      "name": "block-env-writes",
+      "description": "Refuse agent writes to .env files so secrets never land in the repo (exit 2 blocks the tool call).",
+      "enabled": true,
+      "trigger": "PreToolUse",
+      "matcher": "fs_write|write|create",
+      "action": { "type": "command", "command": "node scripts/hooks/block-env-writes.mjs" },
+      "timeout": 10
+    },
+    {
+      "name": "secret-scan-on-stop",
+      "description": "Before handing back, scan the working tree for keys and tokens (the pre-commit secret scan from security.md).",
+      "enabled": true,
+      "trigger": "Stop",
+      "action": { "type": "command", "command": "pnpm -s secret-scan" },
+      "timeout": 60
+    },
+    {
+      "name": "sync-spec-checklist",
+      "description": "After a spec task finishes, keep tasks.md, KIRO_USAGE.md and the README in step with what was actually built.",
+      "enabled": true,
+      "trigger": "PostTaskExec",
+      "action": {
+        "type": "agent",
+        "prompt": "A spec task just finished. Tick it in the matching .kiro/specs/*/tasks.md only if its acceptance criteria are covered by code and a passing test. Add one dated line to KIRO_USAGE.md saying what was built and with which Kiro feature. If the README's feature list or run steps changed, update them. Never mention a personal name other than Demir."
+      }
+    },
+    {
+      "name": "dogfood-doc-links",
+      "description": "On saving Markdown, scan the file through lychgate-mcp (scan_links), print Tombstone, Ghost and Zombie links with their Wayback snapshot, and never edit the file. Quiet when the MCP build is missing.",
+      "enabled": true,
+      "trigger": "PostFileSave",
+      "matcher": "\\.md$",
+      "action": { "type": "command", "command": "node scripts/hooks/dogfood-links.mjs" },
+      "timeout": 100
+    }
+  ]
+}

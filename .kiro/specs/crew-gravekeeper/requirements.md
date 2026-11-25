@@ -1,18 +1,15 @@
-# crew-gravekeeper — requirements (EARS draft)
+# crew-gravekeeper: requirements (EARS)
 
-Status: day-1 scaffold from /workspace/hackathons/kiroween/spec.md. Expand in Kiro once credits land.
+Scope: a separate public repo (`demir-sama/gravekeeper`) holding a Kiro Crew app, entered for the "Best Kiro Crew App" bonus. It watches a list of public repos and re-scans their docs on a schedule with the Lychgate API.
 
-## Ubiquitous
-The system shall classify and present link health without requiring user accounts.
+## R1 Crew app
+- R1.1 The app shall declare one agent ("Gravekeeper") and one skill ("walk-the-graveyard") in `app.json`.
+- R1.2 WHEN the weekly schedule fires, the agent shall POST each watched repo to the public Lychgate `/api/scan`, wait for `done`, and save the summary.
+- R1.3 WHEN a repo's health drops or a new Zombie appears since the last walk, the agent shall write a short report with the new graves, their snapshots, and a ready PR description.
+- R1.4 The app shall publish a dashboard page listing each watched repo, its health trend, and a link to its latest shared Lychgate report.
 
-## Event-driven
-WHEN a user submits a target (URL, public GitHub repo, or Markdown list), the system shall stream classification results for up to 300 links.
+## R2 Safety
+- R2.1 The app shall only scan public repos named in its config, at most 10 per walk, respecting Lychgate's rate limit.
+- R2.2 The app shall never open pull requests or write to the watched repos; it only reports.
 
-## State-driven
-WHILE a scan is running, the system shall expose living, tombstone, ghost, drifted, and zombie counts.
-
-## Unwanted
-IF a fetch target resolves to a private, loopback, link-local, or metadata address, THEN the system shall refuse the request and record an SSRF block.
-
-## Optional
-WHERE a Wayback snapshot exists at or before the citation date, the system shall offer it as the default resurrection candidate.
+Status: requirements only. Build after the main entry is complete; confirm the current Kiro Crew `app.json` format on kiro.dev first.

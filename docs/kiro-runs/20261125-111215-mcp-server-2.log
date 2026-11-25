@@ -1,0 +1,37 @@
+[tool] Reading tasks.md:1, requirements.md:1, design.md:1
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && git status --short | head; ls packages/lychgate-mcp packages/lychgate-mcp/src tests lib lib/*; cat packages/lychgate-mcp/package.json tests/mc...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && cat packages/lychgate-mcp/src/*.ts; cat lib/scan/analyze.ts; grep -n "export" lib/archive/wayback.ts lib/scan/types.ts lib/scan/engine.ts lib/...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && cat lib/scan/types.ts lib/scan/input.ts; sed -n 1,60p lib/scan/engine.ts; sed -n 80,115p lib/archive/wayback.ts; grep -n "THRESHOLDS" -A10 lib...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && grep -n "^export" lib/util/url.ts; grep -n "safeUrl\|export" lib/fetch/guard.ts | head -20
+[tool] status: Completed
+Test first.
+[tool] Creating mcp-tools.test.ts
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && pnpm -s vitest run tests/mcp-tools.test.ts 2>&1 | tail -8; sed -n 52,80p lib/archive/wayback.ts
+[tool] status: Completed
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && pnpm -s vitest run tests/mcp-tools.test.ts 2>&1 | grep -E "Error|FAIL" | head -3
+[tool] status: Completed
+[tool] Creating tools.ts
+[tool] Creating server.ts
+[tool] status: Completed
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && python3 - <<'E' p='packages/lychgate-mcp/src/server.ts' s=open(p).read() s=s.replace(""" // The SDK would reject bad input itself; we register...
+[tool] status: Completed
+Now the full suite, the build check, and the docs.
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && python3 - <<'E' p='.kiro/specs/mcp-server/tasks.md' s=open(p).read() s=s.replace("- [ ] 2. `classify_url`","- [x] 2. `classify_url`") open(p,'...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && grep -c "mcp-server\` task 2" KIRO_USAGE.md; git diff KIRO_USAGE.md | head -20
+[tool] status: Completed
+Task 2 is done: `classify_url` and `find_snapshot` are registered in the MCP server. `pnpm test` (290 tests across 22 files) and `pnpm typecheck` both pass. I didn't run `pnpm mcp:build` after the change, so the bundled `dist/index.js` isn't confirmed. `tests/mcp-package.test.ts` rebuilds it as part of the full suite.
+
+- **Tests first:** I wrote `tests/mcp-tools.test.ts` (8 cases) and watched it fail on the missing module before writing the tools.
+- **Tools:** the handlers and zod schemas are in `packages/lychgate-mcp/src/tools.ts`, and `server.ts` registers them. `classify_url` runs the same `analyzeTarget` as the web app. `find_snapshot` uses `findSnapshot` and `pickSnapshot`.
+- **Output:** every result is a text block followed by a JSON block (R2.6). Bad input comes back as `isError` with a readable message (R2.5). A snapshot lookup with no match says so plainly (R2.3).
+- **Sealed targets:** a private address such as `169.254.169.254` is classified Sealed with zero fetches. The test checks that no call reaches the transport.
+- **Bookkeeping:** I ticked task 2 in `tasks.md` and added the dated line to `KIRO_USAGE.md`. I didn't touch `.kiro/agents` or commit.
+
+The `KIRO_USAGE.md` line was already in your context copy of the file, but it wasn't on disk. It is now on disk once, and `grep` finds one match.

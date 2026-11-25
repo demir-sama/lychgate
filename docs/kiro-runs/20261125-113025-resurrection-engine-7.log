@@ -1,0 +1,76 @@
+[tool] Reading tasks.md:1, requirements.md:1, design.md:1
+[tool] Reading listing lychgate
+[tool] status: Completed
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && cat components/graveyard/Seance.tsx components/ReportView.tsx app/api/replacement/route.ts lib/util/ratelimit.ts lib/patch/preview.ts lib/patc...
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && cat components/Scanner.tsx; cat app/api/scan/route.ts | head -40
+[tool] status: Completed
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && cat components/graveyard/spirits.ts components/graveyard/GraveCard.tsx; grep -n "export" lib/patch/replacement.ts; grep -n "seance\|\.pane-tag...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && sed -n 45,140p tests/replacement-route.test.ts; sed -n 1735,1760p app/globals.css; sed -n 1700,1735p app/globals.css; grep -n "four\|4 tools\|...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && cat >> .kiro/specs/resurrection-engine/requirements.md <<'EOF' ## R5 Per-link choice (task 7) Scope: for each dead or drifted link the person ...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && python3 - <<'EOF' p='.kiro/specs/resurrection-engine/design.md' s=open(p).read() s=s.replace('The footer buttons stay "Resurrect / Leave it": ...
+[tool] status: Completed
+Both fail as expected. Now the implementation.
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && cat > lib/patch/choice.ts <<'EOF' import type { LinkResult } from "../scan/types"; import type { Replacement, ReplacementReason } from "./repl...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && pnpm vitest run tests/choice.test.ts tests/replacement-route.test.ts 2>&1 | grep -B5 -A25 FAIL | head -60
+[tool] status: Completed
+My test's arrow function returns the `expect` result, so fast-check reads it as a boolean. I'll fix the test body.
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && python3 - <<'EOF' p='tests/choice.test.ts' s=open(p).read() s=s.replace("(cls, snap) => expect(defaultChoice(mk(1, cls, snap))).not.toBe(\"rep...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && sed -n 1755,1800p app/globals.css; sed -n 1560,1600p app/globals.css; grep -n "\.switch\b\|\.snap\b\|\.snap-label\|\.btn-seance {" app/globals...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && python3 - <<'EOF' import re # types in choice.ts p='lib/patch/choice.ts' s=open(p).read() s+=''' /** Where one on-demand replacement lookup st...
+[tool] status: Completed
+[tool] status: Failed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && python3 - <<'EOF' p='components/graveyard/GraveCard.tsx' s=open(p).read() s=s.replace("{canPatch && RESURRECTABLE.has(r.cls) && (\n <label...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && python3 - <<'EOF' p='components/graveyard/Seance.tsx' s=open(p).read() s=s.replace("Keep it, or find a replacement by hand.","Keep it, or look...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && python3 - <<'EOF' p='app/globals.css' s=open(p).read() css='''.seance-find { margin: 16px 22px 0; padding: 12px 14px; border-radius: 12px; bor...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && python3 - <<'EOF' p='tests/choice.test.ts' s=open(p).read() s=s.replace('{ [r.url]: { url: r.url, reason: "redirect", confidence: 0.9 } }','{ ...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && python3 - <<'EOF' p='.kiro/specs/resurrection-engine/tasks.md' s=open(p).read() i=s.index('- [ ] 7.') s=s[:i]+'- [x] 7. Per-link choice UI: sn...
+[tool] status: Completed
+Task 7 is done and ticked. `pnpm test` (374 tests across 28 files), `pnpm typecheck`, `pnpm build` and `pnpm secret-scan` all pass. I haven't run the UI in a browser, so the séance flow is untested by hand.
+
+**Spec first.** I added requirements R5.1–R5.10 and rewrote the "Choice UI" section of `design.md`. The old section said the lookup runs when a grave opens. I changed it to match your on-demand decision.
+
+**Pure logic and tests.**
+- `lib/patch/choice.ts` holds the choice-to-replacement map, the default choice and a PR-description summary.
+- `tests/choice.test.ts` uses fast-check properties and failed before the code existed.
+- The properties cover these rules:
+  - "Keep" never changes a link.
+  - A missing snapshot or replacement maps nothing.
+  - A link is never mapped to itself.
+  - Patching changes only the mapped URLs.
+  - The default choice is never the replacement.
+
+**Limiter.** `/api/replacement` now has its own bucket of 30 per 10 minutes per IP, with the comment updated. The route test checks that the 31st request gets a 429 and that another IP is unaffected.
+
+**UI.**
+- The séance has a "Look for a living replacement" button that sends one `POST /api/replacement` per press. It reuses the answer for the same link.
+  - The result shows the URL, the reason (GitHub rename, redirect or sitemap) and the confidence. Otherwise it says "No living replacement found", and notes when the lookup ran out of time. Errors show the message and allow another press.
+  - The result sits in a `role="status"` region.
+  - The lookup logic is in `components/graveyard/useLookups.ts`.
+- The three-way choice is native radio inputs in a `role="radiogroup"`, so arrow keys and Space work. Snapshot is disabled with no snapshot, and the replacement is disabled until one is found. Choosing applies at once, and the footer is a single "Done" button.
+- The choice drives the séance patch preview, the patched files, the diff and the PR description.
+- The PR description now has separate Wayback snapshot and Living replacement tables, and the replacement table gives each link's reason and confidence. The replacement section appears only when a replacement is used.
+- `Scanner.tsx` stores a choice per link instead of the old boolean. The grave-card "Resurrect" switch now means snapshot on or keep.
+- `ReportView.tsx` gets the lookup button but no choice, since shared reports are read-only.
+
+**Other edits.**
+- A resurrectable grave with no snapshot now gets a séance, so the lookup is reachable there. The `s` key and plot clicks follow this too.
+- The `mcp.json` comment and the `lychgate-mcp` README now list five tools.
+- New séance styles are in `globals.css`.
+
+I didn't touch `.kiro/agents` and didn't commit.
+
+`.kiro/specs/mcp-server/design.md` line 22 still says "the four tools" and `tasks.md` line 8 says "four input kinds". I left both because they were outside your list.
+
+A `KIRO_USAGE.md` entry for task 7 exists, and I ticked task 7 in `tasks.md`.

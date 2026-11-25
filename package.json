@@ -1,0 +1,46 @@
+{
+  "name": "lychgate",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A haunted graveyard for dead links: find them, see how they died, resurrect them from the Wayback Machine.",
+  "license": "MIT",
+  "author": "Demir (demir-sama)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "secret-scan": "node scripts/secret-scan.mjs",
+    "mcp:build": "node scripts/mcp-build.mjs"
+  },
+  "packageManager": "pnpm@10.34.6",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@neondatabase/serverless": "^1.2.1",
+    "diff": "^9.0.0",
+    "htmlparser2": "^12.0.0",
+    "ipaddr.js": "^2.5.0",
+    "mdast-util-from-markdown": "^2.1.0",
+    "mdast-util-gfm": "^3.1.0",
+    "micromark-extension-gfm": "^3.0.0",
+    "next": "^15.5.29",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tldts": "^7.5.4",
+    "undici": "^8.12.4",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitest/coverage-v8": "^5.1.0",
+    "esbuild": "^0.28.2",
+    "fast-check": "^4.10.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0"
+  }
+}

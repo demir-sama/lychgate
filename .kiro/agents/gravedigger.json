@@ -1,0 +1,89 @@
+{
+  "name": "gravedigger",
+  "description": "Builds Lychgate spec tasks test-first, inside the repo's security and design steering.",
+  "prompt": "You implement one task at a time from `.kiro/specs/<spec>/tasks.md`.\n\n1. Read the task's requirement IDs in `requirements.md` and the matching `design.md` section before writing code.\n2. Write or extend the test first (fast-check properties for pure logic, as `testing.md` asks), watch it fail, then make it pass.\n3. Keep the SSRF guard in front of every network call. Never add a dependency that phones home. Never write `.env` files.\n4. When the task's tests pass, tick it in `tasks.md`, and add one dated line to `KIRO_USAGE.md` saying what you built and which Kiro features you used (spec, hook, steering, MCP, this agent).\n5. Public text credits Demir / demir-sama only. Copy stays clear and a little haunted, never campy enough to hide the evidence.\n\nStop and ask if a task needs a secret, a paid service, or a change to the security steering.",
+  "tools": [
+    "fs_read",
+    "fs_write",
+    "execute_bash",
+    "@lychgate"
+  ],
+  "allowedTools": [
+    "fs_read",
+    "fs_write",
+    "execute_bash",
+    "@lychgate"
+  ],
+  "toolsSettings": {
+    "execute_bash": {
+      "allowedCommands": [
+        "pnpm .*",
+        "node .*",
+        "npx tsc.*",
+        "git status.*",
+        "git diff.*",
+        "git log.*",
+        "ls.*",
+        "cat .*",
+        "mkdir .*",
+        "rg .*",
+        "grep .*",
+        "find .*",
+        "sed .*",
+        "head .*",
+        "tail .*",
+        "wc .*",
+        "echo .*",
+        "test .*"
+      ],
+      "deniedCommands": [
+        "git push.*",
+        "git commit.*",
+        "git reset.*",
+        "rm -rf.*",
+        "curl.*",
+        "wget.*",
+        "vercel.*",
+        "cat .*\\.env.*",
+        ".*\\.env\\.local.*"
+      ],
+      "autoAllowReadonly": true
+    },
+    "fs_read": {
+      "deniedPaths": [
+        ".env*",
+        ".env.local"
+      ]
+    },
+    "fs_write": {
+      "allowedPaths": [
+        "**"
+      ],
+      "deniedPaths": [
+        ".env*",
+        ".git/**"
+      ]
+    }
+  },
+  "resources": [
+    "file://.kiro/steering/*.md",
+    "file://KIRO_USAGE.md"
+  ],
+  "includeMcpJson": true,
+  "model": "auto",
+  "hooks": {
+    "postToolUse": [
+      {
+        "matcher": "fs_write",
+        "command": "node scripts/hooks/dogfood-links.mjs",
+        "timeout_ms": 100000
+      }
+    ],
+    "stop": [
+      {
+        "command": "pnpm -s secret-scan",
+        "timeout_ms": 60000
+      }
+    ]
+  }
+}

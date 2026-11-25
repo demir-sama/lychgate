@@ -1,0 +1,24 @@
+# scanner-classifier: tasks
+
+- [x] 1. Address policy `lib/net/ip.ts` (allow-list unicast; unwrap IPv4-mapped/compatible/NAT64) — R4.3
+- [x] 2. URL shape + DNS guard `lib/fetch/guard.ts`; connect-time `createGuardedLookup` — R4.1–R4.5
+- [x] 3. `safeFetch` with manual redirects, 8 s timeout, body cap, polite UA; `probeLink` HEAD→GET — R3.1–R3.3, R4.4
+- [x] 4. `HostLimiter` 8/host, 24 global — R3.4
+- [x] 5. Markdown link extraction with exact spans (mdast + GFM) — R1.3
+- [x] 6. Sources: pasted, GitHub (tree + raw + commit history cite dates), website/sitemap — R1, R2
+- [x] 7. Wayback CDX + Availability fallback + cache; `pickSnapshot` — R6
+- [x] 8. RDAP via IANA bootstrap — R5.1, R5.4
+- [x] 9. Signals: parked, not-found text, redirect-to-root; soft-404 sibling probe — R5.2, R5.4
+- [x] 10. Pure `classify()` decision table — R5
+- [x] 11. Engine async generator + NDJSON route with rate limit and time budget — R4.7, R7
+- [x] 12. Tests: unit + fast-check properties (URL canonicalisation idempotent, snapshot picker, classifier never-dead-on-match, patch-only-targets) — testing.md
+- [x] 12a. Live-scan fixes: DNS retry/cache and NXDOMAIN-only tombstones; SPA-shell guard; meta-refresh follow — R5.5, R5.8, R5.9
+- [x] 12b. Live-scan fixes from the first production GitHub scan (58/300 github.com links were 429): per-host cooldown + bounded retry; archived-link short-circuit (a Wayback link was flagged Zombie) — R3.5, R5.10 (`tests/backoff.test.ts`)
+- [x] 12c. DNS-over-HTTPS confirmation for transient resolver errors (Vercel answered EBUSY for an unregistered domain, so it showed as Restless instead of Tombstone) — R5.11 (`tests/doh.test.ts`)
+- [x] 12d. Moved-off-site drift: a 2xx reached by redirecting to another host and path is Drifted, same-path moves stay Living — R5.12 (`tests/offsite.test.ts`)
+- [ ] 13. Shared cache across instances (Neon) for Wayback/RDAP results
+- [ ] 14. Per-link cite date for website input (earliest Wayback capture of the citing page that contains the link)
+- [ ] 15. Calibrate thresholds on a labelled sample (≥ 200 links) and report precision per class
+- [ ] 16. Relative links in GitHub Markdown (resolve to blob URLs / repo files)
+- [ ] 17. Resurrect from 3xx-only captures (e.g. login-redirect pages that never had a 200 snapshot)
+- [ ] 18. github.com links: confirm repos/users through the GitHub API with a server-side `GITHUB_TOKEN` (GitHub answers 429 to HTML checks from shared cloud IPs; ~58 of 300 links in the demo repo stay Restless without it)

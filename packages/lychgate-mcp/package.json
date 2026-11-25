@@ -1,0 +1,12 @@
+{
+  "name": "lychgate-mcp",
+  "version": "0.1.0",
+  "description": "MCP server (stdio) that lets coding agents find dead links, see how they died and find the Wayback snapshot to resurrect them.",
+  "license": "MIT",
+  "author": "Demir (demir-sama)",
+  "type": "module",
+  "bin": { "lychgate-mcp": "dist/index.js" },
+  "files": ["dist", "README.md"],
+  "keywords": ["mcp", "model-context-protocol", "kiro", "links", "wayback"],
+  "engines": { "node": ">=20" }
+}

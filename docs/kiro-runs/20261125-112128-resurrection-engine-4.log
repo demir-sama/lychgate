@@ -1,0 +1,22 @@
+[tool] status: Failed
+[tool] Reading listing resurrection-engine
+[tool] status: Completed
+There's no design.md in this spec. I'll read the two files that exist.
+[tool] Reading tasks.md:1, requirements.md:1
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && ls lib lib/* tests && sed -n 1,80p lib/github/*.ts | head -150 && git status --short | head
+[tool] status: Completed
+I haven't started task 4. The spec doesn't say what to build, so I stopped to ask.
+
+- **No design doc:** `.kiro/specs/resurrection-engine/` has only `requirements.md` and `tasks.md`. There is no `design.md`.
+- **No matching requirement:** `requirements.md` is still the day-1 draft. None of its lines covers suggested live replacements, so I have no requirement IDs to test against.
+- **Undefined search mechanism:** "Same-site search for moved pages" doesn't say how to search. That choice affects security and cost, and I don't want to guess it.
+
+Here is what I would build if you approve it:
+
+1. **Requirements:** I'd add EARS requirements R4.x to `requirements.md` and a short `design.md` section first.
+2. **GitHub renames:** I'd call `GET /repos/{owner}/{repo}` through the existing `GitHubClient`. That call follows GitHub's rename redirect (301) and returns the new `full_name`. It would only run when `canAfford()` allows it, and it needs no token.
+3. **Moved pages:** I'd find candidates from the site's own `sitemap.xml`, plus the final URL of any redirect chain. I'd rank them by path-slug and title similarity, and only suggest a candidate that classifies as Living. Every fetch would go through `safeFetch`, so the SSRF guard stays in front of it. I'd add no external search API, so nothing is paid and no secret is needed.
+4. **Output:** A new `lib/patch/replacement.ts` would return `{url, reason, confidence}`. I'd test it first with fast-check, using these properties: it never suggests a Sealed or non-Living URL, the ranking is deterministic, and a rename maps only to the same owner and repo. The UI choice in task 7 would stay out of scope.
+
+Should I go ahead with that plan? If you prefer a different search source for moved pages, tell me which. Otherwise I'll write the requirements and design first, then do the task.
