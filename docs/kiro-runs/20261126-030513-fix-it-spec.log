@@ -1,0 +1,54 @@
+I'll start by reading the steering files, the existing specs and the source files you listed.
+[tool] Reading listing .kiro, patch.ts:1, choice.ts:1, repo.ts:1, sameorigin.ts:1, ratelimit.ts:1, route.ts:1, listing lychgate-mcp
+[tool] status: Completed
+[tool] Reading security.md:1, requirements.md:1, design.md:1, tasks.md:1, requirements.md:1, design.md:1, tasks.md:1, Scanner.tsx:1, tools.ts:1, README.md:1, mcp-build.mjs:1
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && ls; ls .github 2>/dev/null; cat package.json; sed -n 1,80p lib/scan/types.ts; grep -n "export" lib/scan/engine.ts lib/extract/markdown.ts lib/...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && sed -n 1,140p lib/scan/engine.ts; ls lib/scan lib/util; sed -n 1,40p lib/extract/markdown.ts; tail -5 .kiro/specs/graveyard-ui/tasks.md; grep ...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && grep -n "^export\|^async function\|^function" lib/scan/sources.ts; sed -n 1,60p lib/scan/sources.ts | head -80; grep -n "async function collec...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && cat vitest.config.mts; ls node_modules | grep -i -E "jsdom|happy|testing-library|playwright"; sed -n 1,60p app/api/scan/route.ts; sed -n 1,40p...
+[tool] status: Completed
+[tool] Creating requirements.md
+[tool] status: Completed
+[tool] Creating design.md
+[tool] status: Completed
+[tool] Editing design.md
+[tool] Editing requirements.md
+[tool] Editing requirements.md
+[tool] status: Completed
+[tool] status: Completed
+[tool] status: Completed
+Now the task list and the KIRO_USAGE line.
+[tool] Creating tasks.md
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && grep -n "sitemap-index fix" KIRO_USAGE.md | head -2; grep -n "^## Kiro Crew app" KIRO_USAGE.md
+[tool] status: Completed
+[tool] status: Completed
+[tool] Editing KIRO_USAGE.md
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && sed -n 44,48p KIRO_USAGE.md | cut -c1-80; pnpm test 2>&1 | tail -8; git status --short
+[tool] status: Completed
+[tool] status: Completed
+I wrote the three spec files in `.kiro/specs/fix-it/` and added the 26 Nov line to `KIRO_USAGE.md`. `pnpm test` passes (28 files, 375 tests). I didn't touch `.kiro/agents` and I didn't commit.
+
+- **Requirements:** R1–R4 cover the Fix it pull request (planning and redaction, the GitHub writer, the route, the UI panel). R5–R6 cover the Action and its docs and dogfood workflow.
+- **Design:** it has data flow diagrams, the exact GitHub call sequence, security notes and a test table for both features.
+- **Tasks:** the six tasks follow your order, each naming its test file, plus a requirement-to-test map.
+
+**Steering conflicts (your call before task 2):**
+- `security.md` says "Public GitHub API only; no tokens in the default path" and "no storing user credentials". Fix it takes a token for one request, so the line needs an exception.
+- `product.md` lists "automatic PR creation" as out of scope. Fix it only opens a PR when a person presses a button, but the line should say that.
+- I left both files alone, per the agent rule. The spec says tasks 2–4 stop and ask until you amend them.
+
+**Choices I made where your brief was silent:**
+- **Private and archived repos:** the writer refuses them, because the scanner is public-only. This is easy to relax.
+- **Writer transport:** the writer uses its own fetch wrapper to a fixed `https://api.github.com` and never follows redirects. `safeFetch` only does GET and HEAD, and the SSRF guard protects against user-chosen hosts, which don't exist here. This departs from "SSRF guard in front of every network call", so say if you want it handled differently.
+- **PR body cap:** the PR body is capped at 60,000 characters, because GitHub's limit is 65,536 and 300 links could exceed it.
+- **Scan input:** `/api/scan` will not accept the new `kind: "docs"` scan input that the Action uses.
+- **Action exit codes:** exit 1 means a fail-on class was found. I added exit 2 for invalid inputs, since your "only when" rule leaves no other code for them.
+- **Action dist:** `action/dist/package.json` with `"type": "module"` ships next to the bundle, because Node 20 won't run an ESM `.js` file otherwise.
+- **Action globbing:** a small in-repo glob matcher replaces a dependency.
+- **Action annotations:** the Action emits no `::` annotations.
+- **UI tests:** the repo has no DOM test environment. UI behaviour like focus and 390 px layout goes through a Playwright pass, and unit tests cover only the pure helpers plus a static check that the token never touches storage or the console.
+- **Body cap:** the 64 KB body cap is lower than 300 long URL pairs could need. The UI warns and falls back to the downloads.

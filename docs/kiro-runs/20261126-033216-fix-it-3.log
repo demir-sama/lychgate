@@ -1,0 +1,32 @@
+[tool] Reading tasks.md:1, requirements.md:1, design.md:1
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && cat app/api/replacement/route.ts && sed -n 1,80p tests/replacement-route.test.ts && grep -n "^export" lib/fix/*.ts && ls lib | head -30; grep ...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && sed -n 1,70p lib/fix/github.ts && sed -n 76,90p lib/fix/plan.ts && cat lib/util/ratelimit.ts && sed -n 80,140p tests/replacement-route.test.ts...
+[tool] status: Completed
+[tool] Creating fix-route.test.ts
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && mkdir -p app/api/fix && cat > app/api/fix/route.ts <<'EOF' import { FixInputSchema } from "@/lib/fix/plan"; import { FixError, openFixPullRequ...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && python3 - <<'EOF' p='tests/fix-route.test.ts' s=open(p).read() s=s.replace(''' for (const c of cases) { const res = await POST(req(c as never,...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && python3 - <<'EOF' p='.kiro/specs/fix-it/tasks.md' s=open(p).read() s=s.replace("- [ ] 3. Route","- [x] 3. Route",1) open(p,'w').write(s) p='KI...
+[tool] status: Completed
+Task 3 is done. `POST /api/fix` now exists in `app/api/fix/route.ts`, and `pnpm test` (434 tests, 32 files), `pnpm typecheck` and `pnpm secret-scan` all pass.
+
+- **Order of checks:** The route checks the origin before it reads the body, then the rate limit, the size cap, zod validation, and finally the writer.
+- **Rate limit:** The route has its own limiter bucket, 5 requests per 10 minutes, keyed by IP only.
+- **Size cap:** The 64 KB cap is enforced by `Content-Length` and again by counting bytes read. A request that lies about its length still gets 413 before any JSON parse.
+- **Validation errors:** These give the field name and a fixed message, never the submitted value.
+- **Status mapping:** The writer's statuses 401, 403, 404, 422, 429, 502 and 504 pass through. Any other writer status becomes 502. Unexpected errors get a static 502 message.
+- **Headers and logging:** Every answer carries `no-store` and `nosniff`, and the route never calls `console`. `safeMessage` is applied to writer error messages.
+- **Time budget:** `maxDuration` is 30. The writer gets a 25 s budget joined with the client's abort signal.
+
+Test-first: I wrote `tests/fix-route.test.ts` before the route, with the writer mocked. It checks:
+- the 403, the 429 on the sixth request, and the 413 by header and by bytes;
+- the 400 cases, with a token that must not appear in the response;
+- every status in the map, the headers, and an empty `console` spy.
+
+I did not run the new test file on its own before writing the route, so I didn't watch it fail on its own. The module didn't exist yet, so it could only fail. My first run after writing the route also had one failing test. That was a test bug: all the 400 cases reused one IP and hit the limiter. I gave each case its own IP.
+
+I ticked task 3 in `.kiro/specs/fix-it/tasks.md` and added the dated line to `KIRO_USAGE.md`. I did not touch `.kiro/agents` or commit.
