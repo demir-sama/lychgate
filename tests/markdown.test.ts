@@ -128,3 +128,13 @@ describe("unifiedDiff", () => {
     expect(unifiedDiff("x", "same", "same")).toBe("");
   });
 });
+
+describe("byte-order mark (fix-it R1.2)", () => {
+  it("keeps spans in terms of the original text when it starts with a BOM", () => {
+    const src = "\uFEFFsee [x](https://h.example/p) and <https://i.example/q>\n";
+    const occs = extractMarkdownLinks(src);
+    expect(occs.map((o) => src.slice(o.start, o.end))).toEqual(["https://h.example/p", "https://i.example/q"]);
+    expect(occs.map((o) => o.raw)).toEqual(["https://h.example/p", "https://i.example/q"]);
+    expect(occs.map((o) => o.line)).toEqual([1, 1]);
+  });
+});
