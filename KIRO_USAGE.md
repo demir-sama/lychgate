@@ -66,3 +66,4 @@ This file is the honest record the Kiroween rules ask for: what was built in Kir
 - Sound in the app: synthesized at runtime with the Web Audio API (no samples, nothing licensed)
 - Database: Neon Postgres (free tier) for shared reports
 - Demo video (25 Nov 2026): screen recordings of the production site and the Kiro Crew dashboard (Playwright), edited in Remotion; narration generated locally with the open-weight Kokoro TTS model (Apache-2.0); music and bell synthesized from scratch for the video (no samples, nothing licensed); fonts Fraunces, Inter and JetBrains Mono (SIL OFL)
+- 26 Nov 2026, outside Kiro (AI assistant, small non-product fix): the first run of the dogfood workflow warned that Node 20 actions are deprecated, so `action.yml` now says `using: node24`, the workflow uses `actions/checkout@v5`, and the `action.test.ts` field check follows. The bundle is unchanged (it still targets Node 20 syntax, which Node 24 runs).

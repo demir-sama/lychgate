@@ -27,5 +27,5 @@ outputs:
   dead:
     description: Number of tombstone, ghost and zombie links.
 runs:
-  using: node20
+  using: node24
   main: action/dist/index.js
