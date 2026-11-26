@@ -1,7 +1,7 @@
 import { LINK_CLASSES, type LinkClass } from "../classify/classify";
 import type { SafeFetchOptions } from "../fetch/http";
 import { analyzeTarget, ScanContext } from "./analyze";
-import { collectGitHub, collectMarkdown, collectSite, type Collected } from "./sources";
+import { collectDocs, collectGitHub, collectMarkdown, collectSite, type Collected } from "./sources";
 import type { LinkResult, ScanEvent, ScanInput, ScanSummary } from "./types";
 
 type Deps = Pick<SafeFetchOptions, "transport" | "resolver">;
@@ -21,6 +21,7 @@ export function summarize(results: LinkResult[]): ScanSummary {
 
 export async function collect(input: ScanInput, deps: Deps, onStatus: (m: string) => void): Promise<Collected> {
   if (input.kind === "markdown") return collectMarkdown(input.text, input.citeDate);
+  if (input.kind === "docs") return collectDocs(input.docs, input.dates, input.source);
   if (input.kind === "github") return collectGitHub(input.repo, deps, onStatus);
   return collectSite(input.url, { sitemap: input.sitemap, citeDate: input.citeDate }, deps, onStatus);
 }
