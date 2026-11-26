@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "secret-scan": "node scripts/secret-scan.mjs",
-    "mcp:build": "node scripts/mcp-build.mjs"
+    "mcp:build": "node scripts/mcp-build.mjs",
+    "action:build": "node scripts/action-build.mjs"
   },
   "packageManager": "pnpm@10.34.6",
   "dependencies": {

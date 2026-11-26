@@ -3,7 +3,7 @@ import { extractMarkdownLinks } from "../extract/markdown";
 import { safeFetch, type SafeFetchOptions } from "../fetch/http";
 import { citeDatesFromHistory, fetchRaw, GitHubClient, parseRepoInput, RateLimitError } from "../github/repo";
 import { canonicalUrl } from "../util/url";
-import { MAX_LINKS, type Doc, type Target } from "./types";
+import { MAX_LINKS, type Doc, type DocDates, type Target } from "./types";
 
 type Deps = Pick<SafeFetchOptions, "transport" | "resolver">;
 export type Collected = { source: string; targets: Target[]; found: number; capped: boolean; docs: Doc[]; warnings: string[] };
@@ -32,6 +32,27 @@ export function collectMarkdown(text: string, citeDate?: string): Collected {
     map.set(o.canonical, t);
   }
   return finish(map, "Pasted Markdown", [{ path: "pasted.md", content: text }], []);
+}
+
+/** Files read from a local workspace (the Action): links per document, cite dates from local git. */
+export function collectDocs(docs: Doc[], dates: DocDates = {}, source = "workspace"): Collected {
+  const map = new Map<string, Target>();
+  for (const doc of docs) {
+    const byRaw = dates[doc.path] ?? {};
+    for (const o of extractMarkdownLinks(doc.content)) {
+      const d = byRaw[o.raw];
+      const t = map.get(o.canonical) ?? { url: o.canonical, occurrences: [], citeSource: "none" as const };
+      t.occurrences.push({ doc: doc.path, line: o.line });
+      const when = d ? validDate(d.date) : undefined;
+      if (when && (!t.citeDate || when < t.citeDate)) {
+        t.citeDate = when;
+        t.citeSource = "git";
+        t.citeExact = d.exact;
+      }
+      map.set(o.canonical, t);
+    }
+  }
+  return finish(map, source, docs, []);
 }
 
 /** Public GitHub repo: README + Markdown files, cite dates from git history. */

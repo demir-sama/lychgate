@@ -1,6 +1,6 @@
 # lychgate-mcp
 
-An MCP server (stdio) that gives coding agents Lychgate's link scanner: find dead links, see how they died, and get the Wayback snapshot closest before the link was cited. It never writes files; patches come back as text.
+An MCP server (stdio) that gives coding agents Lychgate's link scanner: find dead links, see how they died, and get the Wayback snapshot closest before the link was cited. It is read-only: it never writes files and never opens pull requests; patches come back as text. To write fixes, use Fix it on the Lychgate site (a pull request you open with your own token) or the Lychgate GitHub Action (a check in CI).
 
 Tools: `scan_links`, `classify_url`, `find_snapshot`, `check_drift` and `suggest_replacement`. The server identifies itself as `lychgate`. The remaining work is listed in `.kiro/specs/mcp-server/tasks.md`.
 

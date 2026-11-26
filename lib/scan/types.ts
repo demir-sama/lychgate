@@ -4,7 +4,12 @@ import type { RedirectHop } from "../fetch/http";
 export type ScanInput =
   | { kind: "site"; url: string; sitemap?: boolean; citeDate?: string }
   | { kind: "github"; repo: string }
-  | { kind: "markdown"; text: string; citeDate?: string };
+  | { kind: "markdown"; text: string; citeDate?: string }
+  /** Files already read from a checked-out workspace (the GitHub Action). Never accepted from the web. */
+  | { kind: "docs"; docs: Doc[]; dates?: DocDates; source?: string };
+
+/** Per document path, per raw link text: when git first saw it. */
+export type DocDates = Record<string, Record<string, { date: string; exact: boolean }>>;
 
 export type Occurrence = { doc: string; line: number };
 
