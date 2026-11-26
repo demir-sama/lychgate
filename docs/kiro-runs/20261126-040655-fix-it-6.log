@@ -1,0 +1,28 @@
+[tool] Reading tasks.md:1, requirements.md:1, design.md:1
+[tool] status: Completed
+[tool] Running: ls .github/workflows 2>&1; cat action.yml | head -40; cat packages/lychgate-mcp/README.md; cat package.json | grep -n '"' | head -40; sed -n 1,40p tests/action.test.ts; ls action/src; git ...
+[tool] status: Completed
+[tool] Creating fix-it-docs.test.ts
+[tool] Running: pnpm -s vitest run tests/fix-it-docs.test.ts 2>&1 | tail -15
+[tool] status: Completed
+[tool] status: Completed
+Fails as expected. Now the files.
+[tool] Creating lychgate.yml
+[tool] Running: python3 - <<'EOF' p='README.md' s=open(p).read() s=s.replace("""- **Gravekeeper**, a Kiro Crew app""","""- **Fix it:** after a GitHub repo scan, open a pull request that applies the links ...
+[tool] status: Completed
+[tool] status: Completed
+[tool] Running: export GITHUB_WORKSPACE=$PWD GITHUB_OUTPUT=/tmp/gh_out GITHUB_STEP_SUMMARY=/tmp/gh_sum; : > $GITHUB_OUTPUT; : > $GITHUB_STEP_SUMMARY; LYCHGATE_DEV_ALLOW_FAKE_IP=1 timeout 200 node action/d...
+[tool] status: Completed
+[tool] Running: python3 - <<'EOF' p='.kiro/specs/fix-it/tasks.md' s=open(p).read() s=s.replace("- [ ] 6. Dogfood","- [x] 6. Dogfood",1) open(p,'w').write(s) p='KIRO_USAGE.md' s=open(p).read() line="- 26 N...
+[tool] status: Completed
+[tool] Running: grep -c "task 6 (R6.1" KIRO_USAGE.md; git diff --stat .kiro/specs/fix-it/tasks.md | tail -1; pnpm test 2>&1 | tail -8; pnpm typecheck 2>&1 | tail -5; pnpm secret-scan 2>&1 | tail -3
+[tool] status: Completed
+`fix-it` task 6 is done. `pnpm test` passes (39 files, 514 tests), and `pnpm typecheck` and `pnpm secret-scan` are clean.
+
+- **Test first:** `tests/fix-it-docs.test.ts` failed before I wrote any of the files. It checks the workflow, the two README sections, the status list and the MCP README.
+- **Workflow:** `.github/workflows/lychgate.yml` runs on Markdown pull requests, weekly and on manual dispatch. It has `contents: read`, a 10-minute timeout, `fetch-depth: 0`, `persist-credentials: false` and `uses: ./`, and no secrets.
+- **Docs:** `README.md` has the "Fix it" and "GitHub Action" sections, and both appear in the status list. `packages/lychgate-mcp/README.md` says the server is read-only and never opens pull requests, and points to Fix it and the Action.
+- **Dogfood run:** I ran `node action/dist/index.js` on this repo with `LYCHGATE_DEV_ALLOW_FAKE_IP=1`. It checked 9 links in the first 20 of 27 files and scored health 88: 7 living, 1 tombstone and 1 restless. It exited 1.
+  - The tombstone is the placeholder `https://github.com/owner/repo/pull/7` in `docs/kiro-runs/20261126-fix-it-4-browser-pass.md:14` (and 4 more places). It is an example address, not a real dead link.
+  - On the default `fail-on` it would fail the new workflow on this repo. I left that doc alone. You could change the placeholder to an `example.com` address or add an exclusion to `paths` in the workflow.
+- **Tick and log:** I ticked task 6 in `tasks.md` and added the dated line to `KIRO_USAGE.md`. The line says it was built in Kiro CLI by the gravedigger agent via `scripts/kiro/run-task.sh fix-it 6` and records the dogfood result. I didn't touch `.kiro/agents` or commit anything.

@@ -1,0 +1,68 @@
+[tool] Reading tasks.md:1, requirements.md:1, design.md:1
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && git status --short | head; ls components components/graveyard lib/fix lib/patch tests | head -100; wc -l components/Scanner.tsx; cat lib/patch...
+[tool] status: Completed
+Steering is already amended (product.md and security.md are modified). Now the Scanner.
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && git diff .kiro/steering | head -40; cat components/Scanner.tsx; cat lib/patch/patch.ts | head -40; grep -n "export" lib/patch/preview.ts lib/f...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && sed -n 1,60p components/graveyard/Seance.tsx; grep -n "seance\|dialog" app/globals.css | head -40; sed -n 20,35p lib/fix/plan.ts; sed -n 140,2...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && sed -n 1,9p lib/fix/plan.ts; sed -n 60,75p lib/fix/plan.ts; head -12 lib/util/url.ts 2>/dev/null; ls lib lib/util; sed -n 1421,1450p app/globa...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && head -12 lib/fix/redact.ts; grep -n "^import" lib/util/url.ts lib/extract/markdown.ts; sed -n 996,1030p app/globals.css; sed -n 685,710p app/g...
+[tool] status: Completed
+[tool] Creating fix-ui.test.ts
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && grep -n "1024\|65" app/api/fix/route.ts | head; python3 - <<'E' p='tests/fix-ui.test.ts' s=open(p).read() s=s.replace(''' expect(src).not.toMa...
+[tool] status: Completed
+That replacement is convoluted; I'll make it a plain check.
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && python3 - <<'E' p='tests/fix-ui.test.ts' L=open(p).read().split('\n') L=[ ' expect(src).not.toMatch(/setItem\\([^)]*token/i);' if 'source.incl...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && pnpm vitest run tests/fix-ui.test.ts 2>&1 | tail -15
+[tool] status: Completed
+Fails as expected. Now the helpers.
+[tool] Creating panel.ts
+[tool] status: Completed
+[tool] Creating FixPanel.tsx
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && python3 - <<'E' p='components/Scanner.tsx' s=open(p).read() def rep(a,b): global s assert s.count(a)==1,a s=s.replace(a,b) rep('import { ch...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && pnpm test 2>&1 | tail -12; pnpm secret-scan 2>&1 | tail -3; pnpm build 2>&1 | tail -15; git status --short | head -20; ls ~/.cache/ms-playwrig...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween && ls lychgate-video/node_modules 2>/dev/null | grep -i playwright; ls lychgate-video | head; ls ~/Library/Caches/ms-playwright 2>/dev/null; find / -name ...
+[tool] status: Completed
+[tool] Running: cd /workspace/qa-tools && ls; cat package.json | head -20; ls ~/.cache/ms-playwright /root/.cache/ms-playwright 2>&1 | head
+[tool] status: Completed
+[tool] Running: cd /workspace/qa-tools && sed -n 1,40p repl.mjs; which chromium chromium-browser google-chrome 2>&1 | head
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && cat lib/scan/types.ts; sed -n 1,30p app/api/scan/route.ts | head -5; grep -n "snapshot" components/graveyard/GraveCard.tsx | head -5
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && (pnpm start -p 3315 >/tmp/lychgate-start.log 2>&1 &) ; sleep 5; cat > /workspace/qa-tools/fixpanel.mjs <<'E' import { chromium } from 'playwri...
+[tool] status: Completed
+[tool] Running: cd /workspace/qa-tools && python3 - <<'E' s=open('fixpanel.mjs').read() s=s.replace("inside.push(await p.evaluate(() => !!document.activeElement?.closest('dialog.fixpanel')));","inside.pus...
+[tool] status: Completed
+[tool] Reading image /workspace/qa-tools/fix-w320.png, /workspace/qa-tools/fix-w390-day.png
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && pkill -f "next start -p 3315" ; pkill -f "next-server" ; { echo "# fix-it task 4: browser pass (Playwright, production build, /api/scan and /a...
+[tool] status: Completed
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && ls docs/kiro-runs | grep browser; grep -c "\[x\] 4\." .kiro/specs/fix-it/tasks.md; grep -c "fix-it. task 4" KIRO_USAGE.md; ls /tmp/line.txt 2>...
+[tool] status: Completed
+Nothing ran. Redoing it without `pkill`.
+[tool] Running: cd /workspace/hackathons/kiroween/lychgate && { echo "# fix-it task 4: browser pass (Playwright, production build, /api/scan and /api/fix mocked)"; echo "Script: /workspace/qa-tools/fixpan...
+[tool] status: Completed
+[tool] Running: kill 379273; sleep 1; ss -ltn | grep -c 3315
+[tool] status: Completed
+`fix-it` task 4 is built, ticked in `tasks.md`, and logged in `KIRO_USAGE.md`. `pnpm test` (459 tests), `pnpm typecheck`, `pnpm secret-scan` and `pnpm build` all pass. I did not touch `.kiro/agents` and did not commit.
+
+- **Test first:** I wrote `tests/fix-ui.test.ts` (25 tests) and watched it fail before writing any code. The fast-check properties cover three things:
+  - The panel's preview agrees with the server's `planFix`.
+  - Every slug the panel sends passes the server rule.
+  - An error message never shows a token.
+
+  Static checks confirm `FixPanel.tsx` and `lib/fix/panel.ts` have no storage, cookie, URL or console use.
+- **Helpers:** `lib/fix/panel.ts` holds the pure helpers. It deliberately does not import `lib/fix/plan.ts`, because that pulls the server-side GitHub client into the browser bundle. The test file checks the two stay in agreement instead.
+- **Panel:** `components/graveyard/FixPanel.tsx` is a native `<dialog>` with a password field. The token lives only in component state and is cleared in a `finally` and on close.
+- **Scanner wiring:** `components/Scanner.tsx` records the scan target when the scan starts. The "Open a pull request" button shows only for a default-branch repo scan with changed files. For a `/tree/<ref>` scan it shows a note instead. I added the panel's styles to `app/globals.css`.
+- **Browser pass:** I ran it with Playwright against the production build, with `/api/scan` and `/api/fix` mocked. It covered 1280, 390 and 320 px, Daylight, and reduced motion. Focus lands on the token field, Esc returns focus to the button, and nothing overflows horizontally. On success the link takes focus and axe reports no violations. The token never reached storage, cookie, URL or console, and the error text and screenshots look right. The log is in `docs/kiro-runs/20261126-fix-it-4-browser-pass.md`.
+
+The one console message per run is Chrome's own line for the mocked 403. The browser pass uses `/workspace/qa-tools/fixpanel.mjs`, which sits outside this repo.

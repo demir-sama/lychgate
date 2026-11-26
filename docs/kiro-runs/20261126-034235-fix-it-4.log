@@ -1,0 +1,15 @@
+[tool] Reading tasks.md:1, requirements.md:1, design.md:1
+[tool] status: Completed
+Task 4 is already ticked in `tasks.md`, and `KIRO_USAGE.md` already has its line. I'll check that the code and tests are in place before deciding whether anything is left to do.
+[tool] Running: ls lib/fix/panel.ts components/graveyard/FixPanel.tsx tests/fix-ui.test.ts docs/kiro-runs/20261126-fix-it-4-browser-pass.md; grep -n "fix-it. task 4" KIRO_USAGE.md | cut -c1-80; pnpm test ...
+[tool] status: Completed
+Task 4 of `fix-it` was already finished, so I changed nothing.
+
+- **Tick:** task 4 is `[x]` in `.kiro/specs/fix-it/tasks.md`.
+- **Log line:** `KIRO_USAGE.md` line 50 already covers it, dated 26 Nov 2026. It says the task was built in Kiro CLI by the gravedigger agent via `scripts/kiro/run-task.sh fix-it 4`.
+- **Files:** `lib/fix/panel.ts`, `components/graveyard/FixPanel.tsx`, `tests/fix-ui.test.ts` and `docs/kiro-runs/20261126-fix-it-4-browser-pass.md` are all present.
+- **Checks:** `pnpm test` passes (33 files, 459 tests) and `pnpm typecheck` is clean.
+
+I didn't re-run the test-first cycle or the browser pass, because the task was already complete.
+
+The next open task is 5, the GitHub Action source and bundle. Run it separately if you want it.
