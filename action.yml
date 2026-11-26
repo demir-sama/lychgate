@@ -1,0 +1,31 @@
+name: Lychgate link check
+description: Find dead, drifted and hijacked links in the Markdown of a repository, entirely inside the runner. Needs no token and no secret.
+author: Demir (demir-sama)
+branding:
+  icon: link
+  color: yellow
+inputs:
+  paths:
+    description: Globs of Markdown files to check, separated by new lines or commas. Start a glob with ! to exclude.
+    required: false
+    default: "**/*.md"
+  max-files:
+    description: Most files to read (1 to 50). README first, then docs/, then shallow paths.
+    required: false
+    default: "20"
+  fail-on:
+    description: Link classes that fail the run, separated by commas (tombstone, ghost, drifted, zombie, restless, sealed). Empty means never fail.
+    required: false
+    default: "tombstone,zombie"
+  cite-dates:
+    description: "git dates each link from the local git history (use fetch-depth: 0); none skips dating."
+    required: false
+    default: "git"
+outputs:
+  health:
+    description: Health score from 0 to 100.
+  dead:
+    description: Number of tombstone, ghost and zombie links.
+runs:
+  using: node20
+  main: action/dist/index.js
