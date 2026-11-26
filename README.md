@@ -17,6 +17,7 @@ Lychgate is a haunted graveyard for broken links, built for [Kiroween 2026](http
 Each grave shows cause of death, evidence, confidence and the Wayback Machine snapshot closest **before** the date the link was added (for GitHub repos, read from git history). Pick which links to resurrect, then download the patched Markdown, a unified diff, a ready PR description or a report.
 
 **Live:** https://lychgate-taupe.vercel.app
+**Demo video:** https://www.youtube.com/watch?v=PhRWQrvAeDo
 
 ## Status: milestone 3
 
