@@ -1,0 +1,29 @@
+name: Lychgate link check
+
+on:
+  pull_request:
+    paths:
+      - "**/*.md"
+      - "**/*.markdown"
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  links:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./
+        with:
+          # Kiro transcripts quote example and test URLs on purpose; check the real docs.
+          paths: |
+            **/*.md
+            !docs/kiro-runs/**
