@@ -7,6 +7,11 @@ export type RepoRef = { owner: string; repo: string; ref?: string; path?: string
 
 const NAME = /^[A-Za-z0-9_.-]{1,100}$/;
 
+/** GitHub owner/repo name rule, shared with `lib/fix/plan.ts`. */
+export function isRepoName(s: string): boolean {
+  return NAME.test(s) && s !== "." && s !== "..";
+}
+
 /** Accepts `owner/repo`, `https://github.com/owner/repo`, `.../tree/<ref>/<path>`, `.../blob/<ref>/<file>`. */
 export function parseRepoInput(input: string): RepoRef | null {
   let s = input.trim().replace(/\.git$/, "").replace(/\/+$/, "");
@@ -32,7 +37,7 @@ const MD_EXT = /\.(md|markdown|mdx)$/i;
 const SKIP_DIRS = /(^|\/)(node_modules|vendor|\.git|dist|build|third_party|\.github\/ISSUE_TEMPLATE)\//i;
 
 /** Rank Markdown paths: README first, then docs/, then shallow paths. */
-export function rankMarkdownPaths(paths: string[], within?: string): string[] {
+export function rankMarkdownPaths(paths: string[], within?: string, limit: number = MAX_MD_FILES): string[] {
   const filtered = paths.filter((p) => MD_EXT.test(p) && !SKIP_DIRS.test(p) && (!within || p === within || p.startsWith(within.replace(/\/?$/, "/"))));
   const score = (p: string) => {
     const base = p.split("/").pop()!.toLowerCase();
@@ -42,7 +47,7 @@ export function rankMarkdownPaths(paths: string[], within?: string): string[] {
     if (/changelog|history|license|code_of_conduct/i.test(base)) s += 50;
     return s;
   };
-  return [...filtered].sort((a, b) => score(a) - score(b) || a.localeCompare(b)).slice(0, MAX_MD_FILES);
+  return [...filtered].sort((a, b) => score(a) - score(b) || a.localeCompare(b)).slice(0, limit);
 }
 
 export type CommitInfo = { sha: string; date: string };

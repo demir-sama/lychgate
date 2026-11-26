@@ -67,6 +67,12 @@ const HTML_ATTR = /\b(?:href|src)\s*=\s*(["'])(https?:\/\/[^"'\s<>]+)\1/gi;
 
 /** Extract every absolute http(s) link in a Markdown document with exact source spans. */
 export function extractMarkdownLinks(src: string): LinkOccurrence[] {
+  // The Markdown parser drops a leading byte-order mark and counts offsets without it; keep spans in `src` terms.
+  if (src.charCodeAt(0) === 0xfeff) return extractLinkSpans(src.slice(1)).map((o) => ({ ...o, raw: src.slice(o.start + 1, o.end + 1), start: o.start + 1, end: o.end + 1 }));
+  return extractLinkSpans(src);
+}
+
+function extractLinkSpans(src: string): LinkOccurrence[] {
   const tree = fromMarkdown(src, { extensions: [gfm()], mdastExtensions: [gfmFromMarkdown()] }) as unknown as Node;
   const lineStarts = [0];
   for (let i = 0; i < src.length; i++) if (src[i] === "\n") lineStarts.push(i + 1);

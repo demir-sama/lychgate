@@ -34,7 +34,57 @@ Working today:
 - **A living replacement:** in the séance, ask for a live replacement (a GitHub repo rename, a same-site redirect or the site's own sitemap, verified Living before it is offered), then choose per link: Wayback snapshot, living replacement, or keep as is. The choice drives the patch, diff and PR description
 - **`lychgate-mcp`:** an MCP server (stdio) with `scan_links`, `classify_url`, `find_snapshot`, `check_drift` and `suggest_replacement`, so Kiro or any MCP client can check docs for dead links. Build with `pnpm mcp:build`; `.kiro/settings/mcp.json` already points at it
 - Kiro hooks: the gravedigger agent scans every Markdown file it writes through `lychgate-mcp` (`postToolUse`), plus the test suites, `.env` write block, secret scan and spec checklist sync in `.kiro/hooks/lychgate.json`
+- **Fix it:** after a GitHub repo scan, open a pull request that applies the links you chose to resurrect (see [Fix it](#fix-it))
+- **GitHub Action:** check the Markdown of your own repo on every pull request and every week, inside the runner (see [GitHub Action](#github-action))
 - **Gravekeeper**, a Kiro Crew app that walks your watched repos weekly with Lychgate: [demir-sama/gravekeeper](https://github.com/demir-sama/gravekeeper)
+
+## Fix it
+
+After a scan of a public GitHub repository, "Open a pull request" in "Leave with the fix" turns the links you chose to resurrect (Wayback snapshot or living replacement) into a pull request on the default branch of that repository. It creates a branch named `lychgate/fix-<date>-<suffix>`, commits each changed Markdown file, and opens the pull request with a table of every old link, its new address and why. It never writes to the default branch, never force-pushes and never deletes anything.
+
+- **Token:** a fine-grained GitHub token limited to that one repository, with Contents read and write and Pull requests read and write. For a repository you cannot push to, fork it and scan the fork.
+- **Your token is used for one request and not stored.** It goes through the Lychgate server to `api.github.com` only, and is never logged, cached or put in a URL.
+- **Without a token** the downloads stay as they were: patched Markdown, unified diff and the PR description.
+- Private and archived repositories are refused. The route is `POST /api/fix`, limited to 5 requests per 10 minutes per IP.
+
+## GitHub Action
+
+Lychgate also runs as an Action. It reads the Markdown in the checked-out workspace, checks the links inside the runner (same engine and SSRF guard as the site), writes a job summary and sets outputs. It needs no token and no secret, and writes nothing to your repository.
+
+```yaml
+name: Links
+on:
+  pull_request:
+    paths: ["**/*.md"]
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  links:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: demir-sama/lychgate@main
+```
+
+Inputs:
+
+| Input | Default | Meaning |
+| --- | --- | --- |
+| `paths` | `**/*.md` | Globs separated by new lines or commas; start one with `!` to exclude |
+| `max-files` | `20` | Most files to read (1 to 50), README first, then `docs/` |
+| `fail-on` | `tombstone,zombie` | Classes that fail the run: `tombstone`, `ghost`, `drifted`, `zombie`, `restless`, `sealed`. Empty never fails |
+| `cite-dates` | `git` | `git` dates each link from local history (needs `fetch-depth: 0`); `none` skips dating |
+
+Outputs: `health` (0 to 100) and `dead` (tombstone, ghost and zombie links).
+
+The run exits 1 when at least one link has a class listed in `fail-on`, and 2 when an input is invalid. Links the budget did not reach count as restless, which fails only if `restless` is in `fail-on`. This repository runs the Action on itself in `.github/workflows/lychgate.yml`.
 
 ## Run locally
 
