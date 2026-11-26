@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LinkClass } from "@/lib/classify/classify";
+import { fixPreview, scanFixTarget } from "@/lib/fix/panel";
 import { choiceSummary, defaultChoice, reasonText, replacementMap, type Choice, type Found } from "@/lib/patch/choice";
 import { patchMarkdown, unifiedDiff } from "@/lib/patch/patch";
 import type { Doc, LinkResult, ScanEvent, ScanSummary } from "@/lib/scan/types";
 import { GateScene } from "./graveyard/GateScene";
+import { FixPanel } from "./graveyard/FixPanel";
 import { GraveCard, graveId } from "./graveyard/GraveCard";
 import { HealthGauge } from "./graveyard/HealthGauge";
 import { SpiritIcon } from "./graveyard/icons";
@@ -94,6 +96,9 @@ export default function Scanner() {
   const soundRef = useRef(false);
   const [share, setShare] = useState<{ state: "idle" | "saving" | "done" | "error"; id?: string; error?: string }>({ state: "idle" });
   const [badgeCopied, setBadgeCopied] = useState(false);
+  const [scanTarget, setScanTarget] = useState<{ slug: string; defaultBranch: boolean } | null>(null);
+  const [fixOpen, setFixOpen] = useState(false);
+  const fixBtnRef = useRef<HTMLButtonElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
   const listRef = useRef<HTMLOListElement>(null);
@@ -149,6 +154,7 @@ export default function Scanner() {
   const replacements = useMemo(() => replacementMap(results, choices, found), [results, choices, found]);
 
   const patched = useMemo(() => docs.map((d) => ({ doc: d, ...patchMarkdown(d.content, replacements) })), [docs, replacements]);
+  const fix = useMemo(() => fixPreview(docs, replacements), [docs, replacements]);
   const changedCount = patched.reduce((n, p) => n + p.changed.length, 0);
 
   async function scan(e: React.FormEvent) {
@@ -169,6 +175,9 @@ export default function Scanner() {
     setOpenGrave(null);
     setSeance(null);
     setShare({ state: "idle" });
+    setFixOpen(false);
+    // The pull request goes to the repository the scan started with, not whatever the input says later.
+    setScanTarget(scanFixTarget(mode, repo));
     setStatus("Opening the gate…");
     cue("open", true);
     const body =
@@ -606,6 +615,11 @@ export default function Scanner() {
                       </button>
                     </>
                   )}
+                  {scanTarget?.defaultBranch && fix.files > 0 && (
+                    <button ref={fixBtnRef} type="button" className="btn btn-quiet btn-fix" aria-haspopup="dialog" onClick={() => setFixOpen(true)}>
+                      Open a pull request
+                    </button>
+                  )}
                   <button type="button" className="btn btn-quiet" onClick={() => download("lychgate-report.md", reportMarkdown())}>
                     ↓ Report
                   </button>
@@ -613,6 +627,9 @@ export default function Scanner() {
                     {share.state === "saving" ? "Carving the headstone…" : share.state === "done" ? "Shared ✓" : "Share report + badge"}
                   </button>
                 </div>
+                {scanTarget && !scanTarget.defaultBranch && (
+                  <p className="hint fix-note">A pull request targets the default branch, so it is not offered for a scan of a branch or path. The downloads above still work.</p>
+                )}
                 {share.state === "error" && (
                   <p className="error share-msg" role="alert">
                     {share.error}
@@ -649,6 +666,17 @@ export default function Scanner() {
             </ol>
             {sorted.length === 0 && results.length > 0 && <p className="empty">No {filter === "all" ? "" : SPIRITS[filter as LinkClass].plural.toLowerCase()} here.</p>}
           </section>
+        )}
+        {scanTarget?.defaultBranch && (
+          <FixPanel
+            open={fixOpen}
+            repo={scanTarget.slug}
+            preview={fix}
+            onClose={() => {
+              setFixOpen(false);
+              requestAnimationFrame(() => fixBtnRef.current?.focus());
+            }}
+          />
         )}
         <Seance
           r={seance ? (results.find((x) => x.url === seance) ?? null) : null}

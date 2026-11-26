@@ -2109,3 +2109,99 @@ summary:hover {
 [data-theme="daylight"] .scene::after {
   background: linear-gradient(90deg, color-mix(in srgb, var(--bg) 88%, transparent) 0%, transparent 60%);
 }
+
+/* the "Open a pull request" dialog */
+.fixpanel {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  border: 1px solid var(--line2);
+  border-radius: 20px;
+  background: radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--accent) 9%, var(--card)) 0%, var(--card) 60%);
+  color: var(--ink);
+  overflow: hidden auto;
+  box-shadow: 0 40px 120px -30px #000;
+}
+.fixpanel::backdrop {
+  background: radial-gradient(70% 60% at 50% 40%, rgba(8, 10, 22, 0.55), rgba(3, 4, 10, 0.88));
+}
+.fix-form {
+  display: grid;
+  gap: 10px;
+  padding: 18px 20px 20px;
+}
+.fix-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.fix-head h2 {
+  margin: 0;
+  font: 600 1.35rem var(--font-display), serif;
+}
+.fix-x {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+}
+.fix-counts,
+.fix-form .hint,
+.fix-note {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.fix-counts {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+.fix-form input[type="password"] {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line2);
+  background: var(--bg2, transparent);
+  color: var(--ink);
+  font: 0.95rem var(--font-mono), monospace;
+}
+.fix-form input[type="password"]:focus-visible,
+.fix-form a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.fix-status:empty {
+  display: none;
+}
+.fix-status {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.fix-done {
+  display: grid;
+  gap: 12px;
+}
+.fix-done p {
+  margin: 0;
+  font: italic 500 1.1rem var(--font-display), serif;
+}
+.fix-done .btn {
+  white-space: normal;
+  text-align: center;
+}
+.fix-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.fix-foot .btn {
+  min-height: 44px;
+}
+.fixpanel[open] {
+  animation: seance-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@media (max-width: 400px) {
+  .fix-form {
+    padding: 14px;
+  }
+}
