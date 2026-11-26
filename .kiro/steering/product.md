@@ -21,4 +21,4 @@ Find every dead link, see how it died, resurrect it in one click.
 5. Leave with patched Markdown or a unified diff, a PR description, a shareable report, and a README badge.
 
 ## Out of scope
-Accounts, private repos, OAuth, automatic PR creation, Save-Page-Now, browser extension, WordPress, PDF/DOCX, crawling beyond sitemap/page + 300 links, non-English UI, payments/crypto.
+Accounts, private repos, OAuth, automatic PR creation (a PR opens only when a person presses "Open a pull request" with their own token), Save-Page-Now, browser extension, WordPress, PDF/DOCX, crawling beyond sitemap/page + 300 links, non-English UI, payments/crypto.
