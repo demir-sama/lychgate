@@ -13,7 +13,7 @@ describe("action.yml (R5.1)", () => {
   const yml = readFileSync(path.join(root, "action.yml"), "utf8");
   it("has the required fields", () => {
     expect(yml).toMatch(/^name: Lychgate link check$/m);
-    expect(yml).toMatch(/using: node20/);
+    expect(yml).toMatch(/using: node24/);
     expect(yml).toMatch(/main: action\/dist\/index\.js/);
     expect(yml).toMatch(/^author: .*Demir \(demir-sama\)/m);
     expect(yml).toMatch(/^description: /m);
